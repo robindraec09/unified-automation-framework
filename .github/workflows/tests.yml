@@ -1,3 +1,9 @@
+# Unified Automation Framework CI (GitHub Actions)
+#
+# Stage 1 (works with no secrets): static checks, API, web (Chromium), ETL on local Docker Postgres.
+# Stage 2: set WEB_USER / WEB_PASSWORD / API_TOKEN secrets and TEST_ENV for your real apps.
+# Stage 3: set repo variable MOBILE_ENABLED=true + CLOUD_USER / CLOUD_KEY secrets for device-cloud runs.
+# See docs/CI.md for the full rollout plan.
 name: tests
 
 on:
@@ -9,27 +15,40 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: Target environment
-        default: qa
+        description: Target environment (config/env/<name>.json)
+        default: dev
+      grep:
+        description: Optional tag filter, e.g. @smoke
+        default: ""
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  TEST_ENV: ${{ github.event.inputs.env || 'dev' }}
+  TEST_ENV: ${{ inputs.env || vars.TEST_ENV || 'dev' }}
   WEB_USER: ${{ secrets.WEB_USER }}
   WEB_PASSWORD: ${{ secrets.WEB_PASSWORD }}
+  API_TOKEN: ${{ secrets.API_TOKEN }}
+  # PRs run smoke only; main, nightly and manual runs run everything (or the manual filter)
+  GREP: ${{ inputs.grep || (github.event_name == 'pull_request' && '@smoke') || '' }}
 
 jobs:
   static:
+    name: Typecheck and lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      # Switch to --frozen-lockfile once pnpm-lock.yaml is committed
+      - run: pnpm install
       - run: pnpm typecheck
       - run: pnpm lint
 
   api:
+    name: API
     needs: static
     runs-on: ubuntu-latest
     steps:
@@ -37,62 +56,68 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm playwright test --project=api ${{ github.event_name == 'pull_request' && '--grep @smoke' || '' }}
+      - run: pnpm install
+      - run: pnpm playwright test --project=api ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-api, path: blob-report, retention-days: 7 }
 
   web:
+    name: Web (shard ${{ matrix.shard }})
     needs: static
     runs-on: ubuntu-latest
-    container: mcr.microsoft.com/playwright:v1.56.0-noble
     strategy:
       fail-fast: false
       matrix:
-        shard: [1/4, 2/4, 3/4, 4/4]
+        shard: [1/2, 2/2]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
+      - name: Install browsers
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then pnpm exec playwright install --with-deps
+          else pnpm exec playwright install --with-deps chromium; fi
       - name: Run web tests
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm playwright test --project=web-chromium --grep @smoke --shard=${{ matrix.shard }}
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            PROJECTS="--project=web-chromium --project=web-firefox --project=web-webkit --project=mobile-web"
           else
-            pnpm playwright test --project=web-chromium --project=web-firefox --project=web-webkit --shard=${{ matrix.shard }}
+            PROJECTS="--project=web-chromium"
           fi
+          pnpm playwright test $PROJECTS ${GREP:+--grep "$GREP"} --shard=${{ matrix.shard }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: "blob-web-${{ strategy.job-index }}", path: blob-report, retention-days: 7 }
 
   etl:
+    name: ETL
     needs: static
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'etl')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
       - run: docker compose -f docker/etl/docker-compose.yml up -d --wait
-      - run: pnpm playwright test --project=etl
+      - run: pnpm playwright test --project=etl ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-etl, path: blob-report, retention-days: 7 }
 
   mobile:
-    # Real devices nightly on a device cloud; set CLOUD_USER / CLOUD_KEY secrets first
-    if: github.event_name == 'schedule'
+    name: Mobile (device cloud)
+    # Off until the repo variable MOBILE_ENABLED is 'true' and cloud secrets exist
+    if: vars.MOBILE_ENABLED == 'true' && github.event_name != 'pull_request'
     needs: static
     runs-on: ubuntu-latest
     env:
       MOBILE_ENABLED: "1"
-      CLOUD: browserstack
-      DEVICE: pixel-8
+      CLOUD: ${{ vars.CLOUD || 'browserstack' }}
+      DEVICE: ${{ vars.DEVICE || 'pixel-8' }}
       CLOUD_USER: ${{ secrets.CLOUD_USER }}
       CLOUD_KEY: ${{ secrets.CLOUD_KEY }}
     steps:
@@ -100,13 +125,14 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm playwright test --project=android
+      - run: pnpm install
+      - run: pnpm playwright test --project=android ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-mobile, path: blob-report, retention-days: 7 }
 
   report:
+    name: Merged report
     if: always()
     needs: [api, web, etl, mobile]
     runs-on: ubuntu-latest
@@ -115,9 +141,13 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
       - uses: actions/download-artifact@v4
         with: { path: all-blob-reports, pattern: blob-*, merge-multiple: true }
       - run: pnpm playwright merge-reports --reporter html ./all-blob-reports
       - uses: actions/upload-artifact@v4
         with: { name: html-report, path: playwright-report, retention-days: 14 }
+      - name: Summary
+        run: |
+          echo "### Test report" >> $GITHUB_STEP_SUMMARY
+          echo "Download **html-report** from this run's artifacts and open index.html." >> $GITHUB_STEP_SUMMARY

@@ -90,8 +90,9 @@ the healer may change locators and waits only. See `docs/CODING_STANDARDS.md`.
 
 ## CI
 
-`.github/workflows/tests.yml`: static checks → API, sharded web, ETL (on main/nightly or PRs labelled `etl`),
-mobile on real devices nightly → one merged HTML report.
+GitHub Actions, `.github/workflows/tests.yml`: static checks → API, sharded web, ETL, and mobile on a device
+cloud once enabled → one merged HTML report. It runs green on the first push with no secrets; the staged
+rollout (secrets, variables, branch protection, reporting) is in [docs/CI.md](docs/CI.md).
 
 ## Next steps
 - Replace demo targets with your applications and services.

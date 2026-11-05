@@ -45,26 +45,27 @@ export function loadConfig(): FrameworkConfig {
   const file = resolve(process.cwd(), 'config', 'env', `${envName}.json`);
   if (!existsSync(file)) throw new Error(`No config for TEST_ENV=${envName} at ${file}`);
   const fromFile = JSON.parse(readFileSync(file, 'utf8'));
+  // `||` not `??`: CI sets unset secrets to "", which must fall back to the file value
   const e = process.env;
 
   const merged = {
     ...fromFile,
-    web: { ...fromFile.web, user: e.WEB_USER ?? fromFile.web?.user, password: e.WEB_PASSWORD ?? fromFile.web?.password },
-    api: { ...fromFile.api, token: e.API_TOKEN ?? fromFile.api?.token },
+    web: { ...fromFile.web, user: e.WEB_USER || fromFile.web?.user, password: e.WEB_PASSWORD || fromFile.web?.password },
+    api: { ...fromFile.api, token: e.API_TOKEN || fromFile.api?.token },
     mobile: {
       ...fromFile.mobile,
-      appiumHost: e.APPIUM_HOST ?? fromFile.mobile?.appiumHost,
-      appiumPort: e.APPIUM_PORT ?? fromFile.mobile?.appiumPort,
-      device: e.DEVICE ?? fromFile.mobile?.device,
-      cloud: e.CLOUD ?? fromFile.mobile?.cloud,
+      appiumHost: e.APPIUM_HOST || fromFile.mobile?.appiumHost,
+      appiumPort: e.APPIUM_PORT || fromFile.mobile?.appiumPort,
+      device: e.DEVICE || fromFile.mobile?.device,
+      cloud: e.CLOUD || fromFile.mobile?.cloud,
     },
     etl: {
       ...fromFile.etl,
-      sourceUrl: e.ETL_SOURCE_URL ?? fromFile.etl?.sourceUrl,
-      targetUrl: e.ETL_TARGET_URL ?? fromFile.etl?.targetUrl,
-      pipeline: e.ETL_PIPELINE ?? fromFile.etl?.pipeline,
-      orchestratorUrl: e.AIRFLOW_URL ?? fromFile.etl?.orchestratorUrl,
-      orchestratorToken: e.AIRFLOW_TOKEN ?? fromFile.etl?.orchestratorToken,
+      sourceUrl: e.ETL_SOURCE_URL || fromFile.etl?.sourceUrl,
+      targetUrl: e.ETL_TARGET_URL || fromFile.etl?.targetUrl,
+      pipeline: e.ETL_PIPELINE || fromFile.etl?.pipeline,
+      orchestratorUrl: e.AIRFLOW_URL || fromFile.etl?.orchestratorUrl,
+      orchestratorToken: e.AIRFLOW_TOKEN || fromFile.etl?.orchestratorToken,
     },
   };
 

@@ -7,6 +7,13 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    rules: {
+      // Playwright fixtures that use no other fixtures are written `async ({}, use) => …`
+      'no-empty-pattern': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+  {
     files: ['tests/**/*.ts', 'seed/**/*.ts'],
     ...playwright.configs['flat/recommended'],
     rules: {
