@@ -1,0 +1,48 @@
+{
+  "name": "unified-automation-framework",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Unified test automation framework: web, mobile, API and ETL on Playwright Test, with MCP and agent enablement",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:web": "playwright test --project=web-chromium",
+    "test:mobile:android": "playwright test --project=android",
+    "test:mobile:ios": "playwright test --project=ios",
+    "test:etl": "playwright test --project=etl",
+    "test:smoke": "playwright test --grep @smoke",
+    "report": "playwright show-report",
+    "etl:up": "docker compose -f docker/etl/docker-compose.yml up -d",
+    "etl:down": "docker compose -f docker/etl/docker-compose.yml down -v",
+    "mcp:framework": "tsx packages/mcp-server/src/index.ts",
+    "agents:init": "playwright init-agents --loop=claude",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "@eslint/js": "^9.0.0",
+    "@faker-js/faker": "^9.0.0",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "allure-playwright": "^3.0.0",
+    "dotenv": "^16.4.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-playwright": "^2.0.0",
+    "pg": "^8.13.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "webdriverio": "^9.0.0",
+    "yaml": "^2.6.0",
+    "zod": "^3.23.0"
+  }
+}

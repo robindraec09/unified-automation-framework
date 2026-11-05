@@ -1,0 +1,12 @@
+{
+  "name": "dev",
+  "web": { "baseUrl": "https://www.saucedemo.com" },
+  "api": { "baseUrl": "https://jsonplaceholder.typicode.com" },
+  "mobile": { "device": "android-emulator", "cloud": "none", "maxDevices": 1 },
+  "etl": {
+    "sourceUrl": "postgres://qa:qa@localhost:5433/source",
+    "targetUrl": "postgres://qa:qa@localhost:5434/warehouse",
+    "pipeline": "local",
+    "maxDiffRows": 100
+  }
+}

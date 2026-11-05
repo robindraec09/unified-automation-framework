@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@qa/core": [
+        "./packages/core/src/index.ts"
+      ],
+      "@qa/data": [
+        "./packages/data/src/index.ts"
+      ],
+      "@qa/web": [
+        "./packages/web/src/index.ts"
+      ],
+      "@qa/mobile": [
+        "./packages/mobile/src/index.ts"
+      ],
+      "@qa/api": [
+        "./packages/api/src/index.ts"
+      ],
+      "@qa/etl": [
+        "./packages/etl/src/index.ts"
+      ],
+      "@qa/flows": [
+        "./packages/flows/src/index.ts"
+      ],
+      "@qa/test": [
+        "./packages/test/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "tests/**/*.ts",
+    "seed/**/*.ts",
+    "playwright.config.ts"
+  ]
+}

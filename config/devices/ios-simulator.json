@@ -1,0 +1,8 @@
+{
+  "platformName": "iOS",
+  "appium:automationName": "XCUITest",
+  "appium:deviceName": "iPhone 16",
+  "appium:platformVersion": "18.0",
+  "appium:app": "./apps/ios/App.app",
+  "appium:newCommandTimeout": 240
+}

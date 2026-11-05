@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "appium": {
+      "command": "npx",
+      "args": ["-y", "appium-mcp@latest"],
+      "env": {
+        "ANDROID_HOME": "${ANDROID_HOME}",
+        "CAPABILITIES_CONFIG": "./config/devices/android-emulator.json"
+      }
+    },
+    "qa-framework": {
+      "command": "npx",
+      "args": ["tsx", "packages/mcp-server/src/index.ts"]
+    },
+    "data": {
+      "command": "npx",
+      "args": ["-y", "@toolbox-sdk/server", "--prebuilt=postgres"],
+      "env": {
+        "POSTGRES_HOST": "localhost",
+        "POSTGRES_PORT": "5434",
+        "POSTGRES_DATABASE": "warehouse",
+        "POSTGRES_USER": "qa",
+        "POSTGRES_PASSWORD": "qa"
+      }
+    }
+  }
+}

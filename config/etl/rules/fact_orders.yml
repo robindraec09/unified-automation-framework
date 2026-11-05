@@ -1,0 +1,23 @@
+# Data-quality rules for dw.fact_orders. One generated test per rule.
+# Types: not_null | unique | accepted_values | range | referential | freshness | custom_sql
+table: dw.fact_orders
+database: warehouse
+owner: data-platform
+tags: ["@dq", "@orders"]
+rules:
+  - type: not_null
+    column: order_id
+  - type: unique
+    columns: [order_id]
+  - type: accepted_values
+    column: status
+    values: [new, paid, shipped]
+  - type: range
+    column: amount_aud
+    min: 0
+  - type: referential
+    column: customer_id
+    references: { table: dw.dim_customer, column: customer_id }
+  - type: custom_sql
+    name: no cancelled orders are loaded
+    sql: select order_id from dw.fact_orders where status = 'cancelled'

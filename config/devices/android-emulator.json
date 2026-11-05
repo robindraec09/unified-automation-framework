@@ -1,0 +1,8 @@
+{
+  "platformName": "Android",
+  "appium:automationName": "UiAutomator2",
+  "appium:deviceName": "emulator-5554",
+  "appium:app": "./apps/android/app-debug.apk",
+  "appium:autoGrantPermissions": true,
+  "appium:newCommandTimeout": 240
+}

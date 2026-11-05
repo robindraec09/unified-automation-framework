@@ -1,0 +1,8 @@
+{
+  "platformName": "Android",
+  "appium:automationName": "UiAutomator2",
+  "appium:deviceName": "Google Pixel 8",
+  "appium:platformVersion": "14.0",
+  "appium:app": "bs://<uploaded-app-id>",
+  "bstack:options": { "projectName": "unified-automation-framework", "buildName": "${BUILD_ID}" }
+}

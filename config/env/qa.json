@@ -1,0 +1,7 @@
+{
+  "name": "qa",
+  "web": { "baseUrl": "https://qa.example.com" },
+  "api": { "baseUrl": "https://api.qa.example.com" },
+  "mobile": { "device": "pixel-8", "cloud": "browserstack", "maxDevices": 4 },
+  "etl": { "pipeline": "airflow", "orchestratorUrl": "https://airflow.qa.example.com", "maxDiffRows": 100 }
+}
