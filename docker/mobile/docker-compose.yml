@@ -1,0 +1,92 @@
+# Android testing in containers (profile "mobile"): APK build, KVM, emulator + Appium, and a proxy so
+# the app can reach Harbourline Bank. Included by the root compose.yaml.
+#   pnpm mobile:up    build the APK, boot the emulator, start Appium (first boot takes a few minutes)
+#   pnpm mobile:test  run the bank-android suite in the tests container
+# Watch the emulator in a browser: http://localhost:6080
+
+services:
+  # Builds apps/harbourline-android with Gradle + Android SDK and copies the APK to ./build/apps/android
+  android-build:
+    profiles: [mobile]
+    build:
+      context: ../../apps/harbourline-android
+    image: harbourline-android:local
+    volumes:
+      - ../../build/apps/android:/out
+
+  # Docker Desktop (Windows, macOS) ships KVM as a module that is not loaded at start, so /dev/kvm is
+  # missing. This loads it inside Docker's own VM; on Linux hosts it is a no-op when KVM is already there.
+  # Needs privileged access to Docker's VM: local and CI use only.
+  kvm-init:
+    profiles: [mobile]
+    image: alpine:3.20
+    privileged: true
+    pid: host
+    command:
+      - nsenter
+      - -t
+      - '1'
+      - -m
+      - --
+      - sh
+      - -c
+      - '[ -e /dev/kvm ] || modprobe kvm_intel 2>/dev/null || modprobe kvm_amd 2>/dev/null; ls -l /dev/kvm'
+    restart: 'no'
+
+  # Android 14 emulator + Appium 3 (UiAutomator2) + noVNC screen viewer, from budtmo/docker-android
+  android:
+    profiles: [mobile]
+    image: budtmo/docker-android:emulator_14.0_v3.9.0-p1
+    devices:
+      - /dev/kvm
+    environment:
+      # A 768x1280 phone. Screen size drives both memory and CPU here: Android raises guest RAM with
+      # resolution (1440p: 4 GB, 1080p: 2.5 GB, whatever -memory says) and the software GPU renders every
+      # pixel on the CPU. Measured at 1080p: 5 GB resident under test load (OOM-killed) and a frozen System UI.
+      EMULATOR_DEVICE: Nexus 4
+      WEB_VNC: 'true'
+      APPIUM: 'true'
+      # The image otherwise posts usage analytics on every start (OS details plus city/region/country
+      # looked up from your IP) to its maintainer's Google Form. Off.
+      USER_BEHAVIOR_ANALYTICS: 'false'
+      # The image's boot wait is 60 checks x this many seconds. Its default (2 s) gives up before a cold
+      # Android 14 boot with software graphics finishes; 10 s allows ~10 minutes.
+      DEVICE_INTERVAL_WAITING: '10'
+      # Ask for the least RAM; Android 14 raises it to its 2.5 GB minimum anyway. Uncapped, a flagship
+      # profile grew to 6.3 GB and the kernel OOM-killed it on an 8 GB Docker VM.
+      EMULATOR_ADDITIONAL_ARGS: '-memory 2048 -no-boot-anim -no-audio'
+    # Hard ceiling so the emulator can never starve the databases or the bank app. Measured during the
+    # bank-android suite: up to 5.1 GB resident (Android 14 enforces 2.5 GB guest RAM, plus ~2.2 GB for the
+    # emulator and software GPU). 6 GB leaves headroom and still fits Docker Desktop's default 8 GB VM.
+    mem_limit: 6g
+    ports:
+      - '6080:6080' # noVNC: watch the emulator in a browser
+      - '4723:4723' # Appium, for runs from your machine
+    volumes:
+      # Appium installs the APK from here (capability appium:app=/apps/harbourline-mobile.apk)
+      - ../../build/apps/android:/apps:ro
+    depends_on:
+      kvm-init: { condition: service_completed_successfully }
+      android-build: { condition: service_completed_successfully }
+    healthcheck:
+      # Healthy once Android reports boot completed and Appium answers (the image has wget, not curl)
+      test:
+        - CMD-SHELL
+        - '[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d ''\r'')" = 1 ] && wget -qO- http://localhost:4723/status > /dev/null'
+      interval: 10s
+      timeout: 5s
+      start_period: 300s
+      retries: 60
+    restart: unless-stopped
+
+  # The app calls http://10.0.2.2:4000 (the emulator's host). This forwards that port, in the emulator
+  # container's network namespace, to the bank-app service.
+  android-proxy:
+    profiles: [mobile]
+    image: alpine/socat:1.8.0.0
+    network_mode: service:android
+    command: ['tcp-listen:4000,fork,reuseaddr', 'tcp-connect:bank-app:4000']
+    depends_on:
+      android: { condition: service_started }
+      bank-app: { condition: service_healthy }
+    restart: unless-stopped

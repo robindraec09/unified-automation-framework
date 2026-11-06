@@ -13,7 +13,9 @@ These apply to every test, hand-written or agent-generated. The framework MCP se
 ## Locators
 
 - Web: `getByRole` > `getByLabel` / `getByPlaceholder` > `getByTestId` > CSS. Never XPath.
-- Mobile: accessibility id (`~id`) > UiAutomator / iOS predicate. Never XPath.
+- Mobile: accessibility id (`~id`) > UiAutomator / iOS predicate. Never XPath. For native Android apps whose
+  content descriptions are real screen-reader labels, use resource ids through UiAutomator (e.g. `harbourlineId('login_button')`)
+  rather than putting test ids in `contentDescription`, which TalkBack would read aloud.
 - New locators belong in a page/screen object, not in a spec.
 
 ## Waiting and assertions

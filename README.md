@@ -1,8 +1,9 @@
 # Unified Automation Framework
 
-A unified test automation framework: **web, mobile, API and data/ETL** on one runner (Playwright Test),
-a **local banking app** to test against, **Docker** for the whole stack, a **one-page stakeholder report**
-on every run, and **MCP servers and AI agents** that plan, generate and heal tests in this framework's own style.
+A unified test automation framework: **web, native Android, API and data/ETL** on one runner (Playwright Test),
+a **local bank (web, API and Android app)** to test against, **Docker for everything** (build, systems under test,
+Android emulator and the test runner), a **one-page stakeholder report** on every run, and **MCP servers and AI
+agents** that plan, generate and heal tests in this framework's own style.
 
 How it fits together, with diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -23,11 +24,11 @@ How it fits together, with diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 ## Prerequisites
 
-| For                     | You need                                                                                                   |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Everything in Docker    | Docker Desktop (or Docker Engine with Compose v2)                                                          |
-| Running on your machine | Node.js 20+ and pnpm 10. pnpm comes with Node through Corepack: run `corepack enable` once (Node 20 to 24) |
-| Native mobile           | Appium 2 plus an emulator, simulator or device cloud account                                               |
+| For                                   | You need                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Everything in Docker (recommended)    | Docker Desktop (or Docker Engine with Compose v2). Nothing else                                                                |
+| Android in Docker                     | An x86-64 machine with hardware virtualization (Windows 11 with WSL 2, or Linux with KVM); about 5 GB of free memory in Docker |
+| Running tests on your machine instead | Node.js 20+ and pnpm 10. pnpm comes with Node through Corepack: run `corepack enable` once (Node 20 to 24)                     |
 
 Commands below use `pnpm`. Without it on your PATH, prefix with `corepack` (`corepack pnpm test:api`) or use
 the plain Docker commands.
@@ -36,27 +37,35 @@ the plain Docker commands.
 
 ### Everything in Docker (recommended)
 
-Systems under test and the test runner (Playwright + browsers) all run in containers:
+Build, systems under test, Android emulator and the test runner (Playwright + browsers) all run in containers:
 
 ```bash
-pnpm stack:up      # ETL databases, Harbourline Bank (PostgreSQL 17 + app); waits until healthy
-pnpm stack:test    # runs api, web-chromium, etl, bank-api, bank-web in the `tests` container
-pnpm stack:down    # stop everything and delete the data
+pnpm stack:up        # ETL databases, Harbourline Bank (PostgreSQL 17 + app); waits until healthy
+pnpm stack:check     # typecheck + lint, in the tests container
+pnpm stack:test      # api, web-chromium, etl, bank-api, bank-web, in the tests container
+pnpm stack:test:all  # the same with every browser: Chromium, Firefox, WebKit, mobile web
+pnpm mobile:up       # build the Android app, boot an Android 14 emulator + Appium (first boot ~10 min)
+pnpm mobile:test     # bank-android: the native app on the emulator
+pnpm stack:down      # stop everything (incl. the emulator) and delete the data
 ```
 
 Without pnpm: `docker compose up -d --build --wait`, then `docker compose run --rm --build tests`.
 Pick suites or tags as you would locally: `docker compose run --rm tests --project=bank-api --grep @smoke`.
 Reports land in `./build/reports` on your machine (`pnpm report:stakeholder`, `pnpm report`).
 
-| Service                     | Purpose                                                                    | Host port  |
-| --------------------------- | -------------------------------------------------------------------------- | ---------- |
-| `source-db`, `warehouse-db` | ETL demo databases (PostgreSQL 16)                                         | 5433, 5434 |
-| `bank-db`                   | Harbourline Bank database (PostgreSQL 17)                                  | 5435       |
-| `bank-init`                 | Seeds the bank database on first start, then exits                         | none       |
-| `bank-app`                  | Harbourline Bank UI + API: <http://localhost:4000>                         | 4000       |
-| `tests`                     | The framework + Playwright browsers; runs on demand (`docker compose run`) | none       |
+| Service                     | Purpose                                                                                               | Host port  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- | ---------- |
+| `source-db`, `warehouse-db` | ETL demo databases (PostgreSQL 16)                                                                    | 5433, 5434 |
+| `bank-db`                   | Harbourline Bank database (PostgreSQL 17)                                                             | 5435       |
+| `bank-init`                 | Seeds the bank database on first start, then exits                                                    | none       |
+| `bank-app`                  | Harbourline Bank UI + API: <http://localhost:4000>                                                    | 4000       |
+| `tests`                     | The framework + Playwright browsers; runs on demand (`docker compose run`)                            | none       |
+| `android-build`             | Builds the Harbourline Mobile APK (Gradle + Android SDK) into `build/apps/android` (profile `mobile`) | none       |
+| `kvm-init`                  | Loads KVM inside Docker Desktop's VM so the emulator gets hardware acceleration (profile `mobile`)    | none       |
+| `android`                   | Android 14 emulator + Appium 3; watch it at <http://localhost:6080> (profile `mobile`)                | 4723, 6080 |
+| `android-proxy`             | Lets the app on the emulator reach `bank-app` (profile `mobile`)                                      | none       |
 
-Defined in [compose.yaml](compose.yaml), which includes `docker/etl` and `docker/bank`.
+Defined in [compose.yaml](compose.yaml), which includes `docker/etl`, `docker/bank` and `docker/mobile`.
 
 ### On your machine
 
@@ -91,9 +100,10 @@ packages/
   reporting/   stakeholder reporter (one-page HTML + Markdown summary + trend history)
   mcp-server/  framework MCP server for agents
 apps/bank/     Harbourline Bank: local system under test (UI + API with Basic/OAuth 2.0 + PostgreSQL)
+apps/harbourline-android/  Harbourline Mobile: native Android app (Kotlin), built in Docker
 tests/         setup/, web/, api/, mobile/, etl/, bank/
 config/        env/*.json, devices/*.json, etl/rules/*.yml, etl/mappings/*.md
-docker/        etl/ and bank/ compose files, tests/ (test runner image)
+docker/        etl/, bank/ and mobile/ compose files, tests/ (test runner image)
 compose.yaml   the whole stack: systems under test + test runner
 merge.config.ts  merges CI shard results into the reports
 docs/          ARCHITECTURE.md, CI.md, CODING_STANDARDS.md
@@ -125,14 +135,15 @@ test('transfer between own accounts updates both balances @smoke', async ({ bank
 });
 ```
 
-| Fixture                                                                | What you get                                                                |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `config`, `cleanup`                                                    | Typed config; a registry that undoes what the test created, even on failure |
-| `shop`, `bank`, `a11y`                                                 | Web page objects; an axe accessibility scan                                 |
-| `posts`, `bankApi`, `bankApiAs({ basic \| bearer \| oauth })`, `oauth` | API clients, authenticated as asked                                         |
-| `bankCustomer`, `bankSupport`                                          | Isolated test data in the bank (created and deleted per test)               |
-| `source`, `warehouse`, `pipeline`, `bankDb`                            | Database clients and the ETL pipeline runner                                |
-| `app` (mobile)                                                         | Screen objects on a worker-scoped Appium session                            |
+| Fixture                                                                | What you get                                                                            |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `config`, `cleanup`                                                    | Typed config; a registry that undoes what the test created, even on failure             |
+| `shop`, `bank`, `a11y`                                                 | Web page objects; an axe accessibility scan                                             |
+| `posts`, `bankApi`, `bankApiAs({ basic \| bearer \| oauth })`, `oauth` | API clients, authenticated as asked                                                     |
+| `bankCustomer`, `bankSupport`                                          | Isolated test data in the bank (created and deleted per test)                           |
+| `source`, `warehouse`, `pipeline`, `bankDb`                            | Database clients and the ETL pipeline runner                                            |
+| `bankApp` (mobile)                                                     | Harbourline Mobile screens (`login`, `accounts`, `transfer`) on a freshly restarted app |
+| `app` (mobile)                                                         | Screen objects on a worker-scoped Appium session                                        |
 
 Rules for locators, waits, assertions, tags and agent changes: [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
 
@@ -193,6 +204,7 @@ build/
 | `android` / `ios`                             | Appium via WebdriverIO                                            | `@smoke @device`                         |
 | `etl`                                         | DB + pipeline fixtures                                            | `@etl @recon @dq`                        |
 | `bank-api` / `bank-web`                       | Harbourline Bank (running container, or auto-started on the host) | `@smoke @security @negative @db @a11y`   |
+| `bank-android`                                | Harbourline Mobile on the Android emulator in Docker (Appium)     | `@smoke @device @negative @security @db` |
 
 ### Harbourline Bank (local system under test)
 
@@ -208,13 +220,35 @@ It exercises every layer of the framework against one realistic system.
 Prefer your own PostgreSQL install? Set `BANK_DB_URL` and `BANK_DB_ADMIN_URL` in `.env` and run `pnpm bank:db:init`.
 API, seed data and OAuth clients: [apps/bank/README.md](apps/bank/README.md).
 
-### Mobile
+### Mobile (Android, in Docker)
 
-1. Install Appium 2+ and drivers: `npm i -g appium && appium driver install uiautomator2` (and `xcuitest` on macOS).
-2. Put your app build in `mobile-builds/` (git-ignored; e.g. `mobile-builds/android/app-debug.apk`) or upload it
-   to your device cloud; adjust `config/devices/*.json`.
-3. `appium` in one terminal, then `MOBILE_ENABLED=1 pnpm test:mobile:android`.
-4. Device cloud: set `CLOUD=browserstack`, `DEVICE=pixel-8`, `CLOUD_USER`, `CLOUD_KEY`.
+Native Android testing runs entirely in containers, on Windows or Linux: the app is **Harbourline Mobile**
+(`apps/harbourline-android`), built with Gradle in Docker and tested on an Android 14 emulator with Appium.
+It signs in with OAuth 2.0 + PKCE and moves money through the same bank API and database as the web UI,
+so tests check results on screen, through the API and in the database.
+
+```bash
+pnpm mobile:up      # android-build -> kvm-init -> android (emulator + Appium) -> android-proxy
+pnpm mobile:test    # bank-android in the tests container
+pnpm mobile:down    # stop the emulator (pnpm stack:down removes everything)
+```
+
+- **First run:** the APK build downloads the Android SDK (10 to 15 minutes, cached afterwards) and the
+  emulator's first cold boot takes up to about 10 minutes. Watch it at <http://localhost:6080>.
+- **Hardware acceleration:** Docker Desktop ships KVM unloaded; the `kvm-init` container loads it inside
+  Docker's VM (privileged, local and CI use only). On Linux it is a no-op when `/dev/kvm` already exists.
+- **Memory:** the emulator (a 768x1280 phone) uses about 5 GB under test (Android 14 enforces 2.5 GB of guest
+  RAM; software graphics add the rest), so its container is capped at 6 GB. That fits Docker Desktop's default
+  8 GB VM for mobile runs. To run the browser suites at the same time, give Docker 12 GB or more (WSL `.wslconfig`).
+  Larger screens need much more (a 1080p profile hit 5 GB idle and froze System UI).
+- **Privacy:** the emulator image (budtmo/docker-android) sends usage analytics with your IP-based location by
+  default; `docker/mobile` turns that off (`USER_BEHAVIOR_ANALYTICS=false`).
+- **From your machine:** with `pnpm mobile:up` running, `pnpm test:bank:android` uses Appium on `localhost:4723`.
+
+Your own app: put the build in `mobile-builds/` (git-ignored) or build it in Docker the same way, add a device
+file in `config/devices/`, screens in `packages/mobile/src/screens/<app>/`, and a project with `mobileDevice`.
+Real devices or iOS: use a device cloud (`CLOUD=browserstack`, `DEVICE=pixel-8`, `CLOUD_USER`, `CLOUD_KEY`)
+with `MOBILE_ENABLED=1 pnpm test:mobile:android`; iOS simulators need macOS and can't run in Docker.
 
 ### ETL
 
@@ -249,9 +283,10 @@ the healer may change locators and waits only. See [docs/CODING_STANDARDS.md](do
 
 ## CI
 
-GitHub Actions, `.github/workflows/tests.yml`: typecheck and lint → API, sharded web, ETL, Harbourline Bank
-(in Docker) and mobile on a device cloud once enabled → one merged report job. Pull requests run `@smoke`;
-pushes to `main` and the nightly run do everything.
+GitHub Actions, `.github/workflows/tests.yml`. Every job runs in the same containers as locally (the runner
+needs only Docker): typecheck and lint → API, sharded web, ETL, Harbourline Bank, Harbourline Mobile on the
+Android emulator (pushes to `main`, nightly, manual) and a device cloud once enabled → one merged report job.
+Pull requests run `@smoke`; pushes to `main` and the nightly run do everything.
 
 The report job posts the stakeholder summary on the run page and uploads the `quality-report` artifact
 (stakeholder page + engineering report; open `stakeholder/index.html`). Trend history is kept per branch.
@@ -259,24 +294,28 @@ It runs green with no secrets; the staged rollout (secrets, variables, branch pr
 
 ## Troubleshooting
 
-| Symptom                                                    | Fix                                                                                                                                    |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm: command not found`                                  | `corepack enable`, or prefix commands with `corepack`                                                                                  |
-| Every bank or ETL test is skipped                          | The system is down: `pnpm stack:up` (or `bank:up` / `etl:up`). The skip reason in the report says which                                |
-| Docker commands fail with "cannot find the file specified" | Start Docker Desktop                                                                                                                   |
-| Port 4000 or 5433-5435 already in use                      | Stop the other process, or another copy of the stack (`pnpm stack:down`)                                                               |
-| Bank tests fail at login as `alex.morgan`                  | Three wrong passwords lock a customer, so tests should never use `alex.morgan` for wrong-password cases. Unlock with `pnpm bank:reset` |
-| `prettier --check` flags many files on Windows             | `core.autocrlf=true` gives CRLF working copies; the committed files are LF. CI does not run Prettier                                   |
+| Symptom                                                             | Fix                                                                                                                                    |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm: command not found`                                           | `corepack enable`, or prefix commands with `corepack`                                                                                  |
+| Every bank or ETL test is skipped                                   | The system is down: `pnpm stack:up` (or `bank:up` / `etl:up`). The skip reason in the report says which                                |
+| `bank-android` skipped or failing with "Appium ... not reachable"   | Start the emulator: `pnpm mobile:up`, and wait for it to report healthy (first boot up to ~10 min)                                     |
+| Emulator container restarts or Android shows "isn't responding"     | Docker is short of memory or CPU: stop other heavy containers, or give Docker Desktop more memory (WSL `.wslconfig`)                   |
+| `mobile:up` fails at `kvm-init` or the emulator says KVM is missing | Enable virtualization in the BIOS/UEFI and WSL 2; on Linux add your user to the `kvm` group                                            |
+| Docker commands fail with "cannot find the file specified"          | Start Docker Desktop                                                                                                                   |
+| Port 4000 or 5433-5435 already in use                               | Stop the other process, or another copy of the stack (`pnpm stack:down`)                                                               |
+| Bank tests fail at login as `alex.morgan`                           | Three wrong passwords lock a customer, so tests should never use `alex.morgan` for wrong-password cases. Unlock with `pnpm bank:reset` |
+| `prettier --check` flags many files on Windows                      | `core.autocrlf=true` gives CRLF working copies; the committed files are LF. CI does not run Prettier                                   |
 
 ## Documentation
 
-| Document                                             | What's in it                                                                                                           |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)         | Diagrams and design: packages, execution model, Docker stack, bank, reporting, CI, agents, decisions, extension points |
-| [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | How tests are written (served to agents as `qa://standards`)                                                           |
-| [docs/CI.md](docs/CI.md)                             | Pipeline triggers and the staged rollout                                                                               |
-| [apps/bank/README.md](apps/bank/README.md)           | Harbourline Bank: running it, seed data, API, OAuth, database                                                          |
-| [specs/README.md](specs/README.md)                   | Test plans from the planner agent                                                                                      |
+| Document                                                                 | What's in it                                                                                                           |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                             | Diagrams and design: packages, execution model, Docker stack, bank, reporting, CI, agents, decisions, extension points |
+| [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md)                     | How tests are written (served to agents as `qa://standards`)                                                           |
+| [docs/CI.md](docs/CI.md)                                                 | Pipeline triggers and the staged rollout                                                                               |
+| [apps/bank/README.md](apps/bank/README.md)                               | Harbourline Bank: running it, seed data, API, OAuth, database                                                          |
+| [apps/harbourline-android/README.md](apps/harbourline-android/README.md) | Harbourline Mobile: screens, resource ids, PKCE sign-in, building in Docker                                            |
+| [specs/README.md](specs/README.md)                                       | Test plans from the planner agent                                                                                      |
 
 ## Next steps
 

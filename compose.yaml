@@ -1,16 +1,20 @@
-# The whole QA stack in Docker: systems under test + the test runner, one Compose project.
+# The whole QA stack in Docker: systems under test, the Android emulator, the build and the test runner.
 #
-#   pnpm stack:up      start every service (ETL databases, Harbourline Bank DB + app) and wait until healthy
-#   pnpm stack:test    run all suites inside the `tests` container (everything generated lands in ./build)
-#   pnpm stack:down    stop everything and delete all data volumes
+#   pnpm stack:up       ETL databases + Harbourline Bank (DB, seed, app); waits until healthy
+#   pnpm stack:check    typecheck + lint in the tests container
+#   pnpm stack:test     api, web-chromium, etl, bank-api, bank-web in the tests container
+#   pnpm stack:test:all every browser (Chromium, Firefox, WebKit, mobile web) as well
+#   pnpm mobile:up      APK build + KVM + Android emulator + Appium (profile "mobile")
+#   pnpm mobile:test    bank-android: the native app on the emulator
+#   pnpm stack:down     stop everything and delete all data volumes
 #
 # Pass your own Playwright arguments:  docker compose run --rm tests --project=bank-api --grep @smoke
-# Native mobile (Appium + device) is not containerised.
 name: qa-stack
 
 include:
   - docker/etl/docker-compose.yml # source-db (5433), warehouse-db (5434)
   - docker/bank/docker-compose.yml # bank-db (5435), bank-init, bank-app (4000)
+  - docker/mobile/docker-compose.yml # profile mobile: android-build, kvm-init, android (4723, 6080), android-proxy
 
 services:
   tests:
@@ -30,11 +34,17 @@ services:
       # The bank-app container is the server: Playwright must not start another, and must fail if it is down
       BANK_AUTOSTART: '0'
       BANK_REQUIRED: '1'
+      # Appium inside the android container; a missing emulator fails bank-android instead of skipping it
+      APPIUM_HOST: android
+      APPIUM_PORT: '4723'
+      MOBILE_REQUIRED: '1'
     depends_on:
       source-db: { condition: service_healthy }
       warehouse-db: { condition: service_healthy }
       bank-app: { condition: service_healthy }
-    # Web, API and ETL suites; mobile needs Appium and a device
+      # Only when the mobile profile is active (pnpm mobile:test)
+      android: { condition: service_healthy, required: false }
+    # Web, API and ETL suites by default; mobile runs with pnpm mobile:test
     command:
       - --project=api
       - --project=web-chromium

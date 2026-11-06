@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Harbourline</string>
+    <string name="brand">Harbourline Bank</string>
+    <string name="demo_notice">Demo bank for test automation. Not a real financial institution.</string>
+    <string name="login_title">Log in</string>
+    <string name="customer_id">Customer ID</string>
+    <string name="password">Password</string>
+    <string name="log_in">Log in</string>
+    <string name="your_accounts">Your accounts</string>
+    <string name="net_position">Net position</string>
+    <string name="transfer">Transfer</string>
+    <string name="log_out">Log out</string>
+    <string name="from_account">From account</string>
+    <string name="to_account">To account</string>
+    <string name="amount">Amount (AUD)</string>
+    <string name="description">Description</string>
+    <string name="transfer_now">Transfer now</string>
+    <string name="back_to_accounts">Back to accounts</string>
+    <string name="error_required">Enter your customer ID and password</string>
+    <string name="error_credentials">Customer ID or password is incorrect</string>
+    <string name="error_locked">This account is locked. Please contact Harbourline support.</string>
+    <string name="error_network">Unable to reach Harbourline Bank. Please try again.</string>
+    <string name="error_amount">Enter an amount greater than $0.00 with up to 2 decimal places</string>
+</resources>

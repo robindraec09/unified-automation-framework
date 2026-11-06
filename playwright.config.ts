@@ -25,7 +25,7 @@ const startBank =
  *   setup → api, web-*, mobile-web, android, ios, etl
  * Select with --project and filter with --grep @tag.
  */
-export default defineConfig<object, { requiresBank: boolean }>({
+export default defineConfig<object, { requiresBank: boolean; mobileDevice: string | undefined }>({
   testDir: './tests',
   // All generated files go under build/ (see BUILD in packages/core)
   outputDir: BUILD.testResults,
@@ -129,6 +129,15 @@ export default defineConfig<object, { requiresBank: boolean }>({
         storageState: AUTH.bankCustomer,
         requiresBank: true,
       },
+    },
+
+    // Harbourline Mobile: native Android app on the emulator in Docker (pnpm mobile:up). One device, one worker.
+    {
+      name: 'bank-android',
+      testDir: './tests/bank/mobile',
+      workers: 1,
+      timeout: 180_000,
+      use: { requiresBank: true, mobileDevice: 'harbourline-android' },
     },
 
     // ETL / data

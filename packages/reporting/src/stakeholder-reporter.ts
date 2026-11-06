@@ -37,6 +37,7 @@ const DEFAULT_AREAS: Record<string, string> = {
   etl: 'Data pipeline (ETL)',
   'bank-api': 'Banking API',
   'bank-web': 'Internet banking',
+  'bank-android': 'Harbourline Mobile (Android)',
   android: 'Android app',
   ios: 'iOS app',
 };

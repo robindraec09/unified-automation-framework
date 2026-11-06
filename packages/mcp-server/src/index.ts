@@ -48,6 +48,7 @@ const ALLOWED_PROJECTS = [
   'etl',
   'bank-api',
   'bank-web',
+  'bank-android',
 ];
 const BLOCKED_ENVS = ['prod', 'production'];
 
