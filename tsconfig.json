@@ -37,6 +37,9 @@
       "@qa/flows": [
         "./packages/flows/src/index.ts"
       ],
+      "@qa/reporting": [
+        "./packages/reporting/src/index.ts"
+      ],
       "@qa/test": [
         "./packages/test/src/index.ts"
       ]

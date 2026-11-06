@@ -2,13 +2,11 @@ import { test as base } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/login.page';
 import { InventoryPage } from './pages/inventory.page';
-import {
-  AccountDetailPage,
-  AccountsPage,
-  BankLoginPage,
-  PayeesPage,
-  TransferPage,
-} from './pages/bank/bank.pages';
+import { BankLoginPage } from './pages/bank/bank-login.page';
+import { AccountsPage } from './pages/bank/accounts.page';
+import { AccountDetailPage } from './pages/bank/account-detail.page';
+import { TransferPage } from './pages/bank/transfer.page';
+import { PayeesPage } from './pages/bank/payees.page';
 
 export type WebFixtures = {
   shop: { login: LoginPage; inventory: InventoryPage };

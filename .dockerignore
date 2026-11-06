@@ -3,12 +3,8 @@
 .env.*
 !.env.example
 .git
-.auth
 **/node_modules
-test-results
-playwright-report
-blob-report
-allure-results
-allure-report
 *.log
 .vscode
+build
+mobile-builds

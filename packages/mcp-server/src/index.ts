@@ -9,11 +9,15 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { spawn } from 'node:child_process';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readFileSync, readdirSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+
+// This package is ESM; createRequire resolves the Playwright CLI the same way Node would
+const PLAYWRIGHT_CLI = createRequire(import.meta.url).resolve('@playwright/test/cli');
 
 const ROOT = resolve(process.env.QA_ROOT ?? process.cwd());
-const LAST_RUN = join(ROOT, 'test-results', 'mcp-last-run.json');
+const LAST_RUN = join(ROOT, 'build', 'reports', 'mcp', 'last-run.json');
 
 /** The subset of Playwright's JSON reporter output that get_last_failures reads. */
 interface JsonReportSuite {
@@ -33,11 +37,24 @@ interface JsonReportSuite {
     }[];
   }[];
 }
-const ALLOWED_PROJECTS = ['api', 'web-chromium', 'web-firefox', 'web-webkit', 'mobile-web', 'android', 'ios', 'etl'];
+const ALLOWED_PROJECTS = [
+  'api',
+  'web-chromium',
+  'web-firefox',
+  'web-webkit',
+  'mobile-web',
+  'android',
+  'ios',
+  'etl',
+  'bank-api',
+  'bank-web',
+];
 const BLOCKED_ENVS = ['prod', 'production'];
 
 const text = (value: unknown) => ({
-  content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }],
+  content: [
+    { type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) },
+  ],
 });
 
 /** Lists exported classes and their public members from a folder of TS files. */
@@ -69,7 +86,11 @@ server.registerTool(
   },
   async ({ channel }) => {
     const out: Record<string, unknown> = {};
-    if (channel !== 'mobile') out.web = [...describeObjects('packages/web/src/pages'), ...describeObjects('packages/web/src/components')];
+    if (channel !== 'mobile')
+      out.web = [
+        ...describeObjects('packages/web/src/pages'),
+        ...describeObjects('packages/web/src/components'),
+      ];
     if (channel !== 'web') out.mobile = describeObjects('packages/mobile/src/screens');
     return text(out);
   },
@@ -77,7 +98,10 @@ server.registerTool(
 
 server.registerTool(
   'list_fixtures',
-  { description: 'Describe the fixtures available from `import { test, expect } from "@qa/test"`.', inputSchema: {} },
+  {
+    description: 'Describe the fixtures available from `import { test, expect } from "@qa/test"`.',
+    inputSchema: {},
+  },
   async () =>
     text({
       import: "import { test, expect } from '@qa/test';",
@@ -94,13 +118,27 @@ server.registerTool(
       },
       matchers: { toMatchSchema: 'await expect(apiResponse).toMatchSchema(ZodSchema)' },
       dataBuilders: ['PostBuilder', 'OrderBuilder'],
-      tags: ['@smoke', '@regression', '@contract', '@functional', '@negative', '@a11y', '@device', '@etl', '@recon', '@dq'],
+      tags: [
+        '@smoke',
+        '@regression',
+        '@contract',
+        '@functional',
+        '@negative',
+        '@a11y',
+        '@device',
+        '@etl',
+        '@recon',
+        '@dq',
+      ],
     }),
 );
 
 server.registerTool(
   'get_env_config',
-  { description: 'Return the non-secret config for an environment.', inputSchema: { env: z.string().default('dev') } },
+  {
+    description: 'Return the non-secret config for an environment.',
+    inputSchema: { env: z.string().default('dev') },
+  },
   async ({ env }) => {
     const file = join(ROOT, 'config', 'env', `${env}.json`);
     if (!existsSync(file)) return text(`No config for env '${env}'`);
@@ -108,7 +146,10 @@ server.registerTool(
     const redact = (o: unknown): unknown =>
       o && typeof o === 'object'
         ? Object.fromEntries(
-            Object.entries(o).map(([k, v]) => [k, /password|token|key|secret|url$/i.test(k) && typeof v === 'string' ? '***' : redact(v)]),
+            Object.entries(o).map(([k, v]) => [
+              k,
+              /password|token|key|secret|url$/i.test(k) && typeof v === 'string' ? '***' : redact(v),
+            ]),
           )
         : o;
     return text(redact(cfg));
@@ -129,14 +170,19 @@ server.registerTool(
   },
   async ({ project, grep, env }) => {
     if (BLOCKED_ENVS.includes(env)) return text('Refused: agents may not run tests against production.');
-    const args = ['playwright', 'test', `--project=${project}`, '--reporter=json'];
+    // Run Playwright's CLI with this Node binary: spawning `npx` fails on Windows (it is npx.cmd)
+    const args = [PLAYWRIGHT_CLI, 'test', `--project=${project}`, '--reporter=json'];
+    mkdirSync(dirname(LAST_RUN), { recursive: true });
+    rmSync(LAST_RUN, { force: true }); // never report a previous run's results as this one's
     if (grep) args.push('--grep', grep);
     const code = await new Promise<number>((done) => {
-      const child = spawn('npx', args, {
+      const child = spawn(process.execPath, args, {
         cwd: ROOT,
         env: { ...process.env, TEST_ENV: env, PLAYWRIGHT_JSON_OUTPUT_NAME: LAST_RUN },
         stdio: 'ignore',
       });
+      // Without this, a spawn failure is an unhandled 'error' event that kills the MCP server
+      child.on('error', () => done(1));
       child.on('close', (c) => done(c ?? 1));
     });
     if (!existsSync(LAST_RUN)) return text({ exitCode: code, error: 'No JSON report produced' });
@@ -147,7 +193,10 @@ server.registerTool(
 
 server.registerTool(
   'get_last_failures',
-  { description: 'Failures from the last run_tests call: title, file, error message, attachments.', inputSchema: {} },
+  {
+    description: 'Failures from the last run_tests call: title, file, error message, attachments.',
+    inputSchema: {},
+  },
   async () => {
     if (!existsSync(LAST_RUN)) return text('No previous run.');
     const report = JSON.parse(readFileSync(LAST_RUN, 'utf8'));
@@ -178,7 +227,9 @@ server.registerTool(
     const rulesDir = join(ROOT, 'config', 'etl', 'rules');
     const mapDir = join(ROOT, 'config', 'etl', 'mappings');
     return text({
-      rules: existsSync(rulesDir) ? readdirSync(rulesDir).map((f) => ({ file: f, content: readFileSync(join(rulesDir, f), 'utf8') })) : [],
+      rules: existsSync(rulesDir)
+        ? readdirSync(rulesDir).map((f) => ({ file: f, content: readFileSync(join(rulesDir, f), 'utf8') }))
+        : [],
       mappings: existsSync(mapDir) ? readdirSync(mapDir) : [],
     });
   },

@@ -3,12 +3,10 @@ export { BasePage } from './pages/base.page';
 export { LoginPage } from './pages/login.page';
 export { InventoryPage } from './pages/inventory.page';
 export { HeaderComponent } from './components/header.component';
-export {
-  AccountDetailPage,
-  AccountsPage,
-  BankLoginPage,
-  BankNav,
-  PayeesPage,
-  TransferPage,
-  toAud,
-} from './pages/bank/bank.pages';
+export { BankLoginPage } from './pages/bank/bank-login.page';
+export { AccountsPage } from './pages/bank/accounts.page';
+export { AccountDetailPage } from './pages/bank/account-detail.page';
+export { TransferPage } from './pages/bank/transfer.page';
+export { PayeesPage } from './pages/bank/payees.page';
+export { BankNav } from './components/bank-nav.component';
+export { toAud } from './utils/money';

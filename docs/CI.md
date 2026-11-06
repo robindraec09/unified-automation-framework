@@ -11,7 +11,9 @@ Workflow: `.github/workflows/tests.yml`. One pipeline, staged rollout, so the fi
 | Nightly (14:00 UTC)   | yes              | full                        | Chromium, Firefox, WebKit, mobile-web | full     | full          | if enabled |
 | Manual (Run workflow) | yes              | env + tag filter you choose | Chromium                              | yes      | yes           | if enabled |
 
-Every job uploads a blob report; the `report` job merges them into one HTML report (artifact `html-report`).
+Every job uploads a blob report; the `report` job merges them (`merge.config.ts`) into the engineers' HTML report
+(artifact `html-report`) and the one-page stakeholder report; both are in the `quality-report` artifact, and the
+stakeholder summary is posted on the run page. Trend history is kept per branch in the Actions cache.
 
 ## Rollout
 
