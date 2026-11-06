@@ -72,7 +72,10 @@ export const apiTest = base.extend<ApiFixtures, ApiWorkerFixtures>({
   bankGate: [
     async ({ requiresBank }, use, testInfo) => {
       // Other projects never ping the bank app: the check only runs when requiresBank is set
-      testInfo.skip(requiresBank && !(await bankIsUp()), BANK_DOWN);
+      const down = requiresBank && !(await bankIsUp());
+      // CI sets BANK_REQUIRED=1: a bank that is down must fail the job, not pass it with every test skipped
+      if (down && process.env.BANK_REQUIRED === '1') throw new Error(BANK_DOWN);
+      testInfo.skip(down, BANK_DOWN);
       await use();
     },
     { auto: true },

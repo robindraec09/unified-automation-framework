@@ -5,12 +5,6 @@
 # Ports avoid clashes: 5432 = a local PostgreSQL install, 5433/5434 = the ETL demo.
 name: harbourline-bank
 
-# Both services build the same Dockerfile (shared build cache). No shared image tag: parallel builds would clash.
-x-bank-image: &bank-image
-  build:
-    context: ../..
-    dockerfile: apps/bank/Dockerfile
-
 services:
   bank-db:
     image: postgres:17
@@ -28,7 +22,9 @@ services:
 
   # Creates the schema and seed data on first start only (--if-empty); keeps data across restarts
   bank-init:
-    <<: *bank-image
+    # Same image as bank-app, built once by bank-app (parallel builds of one Dockerfile collide)
+    image: harbourline-bank:local
+    pull_policy: never
     command: ['apps/bank/node_modules/.bin/tsx', 'apps/bank/scripts/db-init.ts', '--if-empty']
     environment:
       BANK_DB_URL: postgres://bank_app:bank_app@bank-db:5432/bank
@@ -40,7 +36,10 @@ services:
     restart: 'no'
 
   bank-app:
-    <<: *bank-image
+    image: harbourline-bank:local
+    build:
+      context: ../..
+      dockerfile: apps/bank/Dockerfile
     environment:
       BANK_DB_URL: postgres://bank_app:bank_app@bank-db:5432/bank
       BANK_PUBLIC_URL: http://localhost:4000

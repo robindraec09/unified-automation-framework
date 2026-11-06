@@ -1,6 +1,7 @@
 # Unified Automation Framework CI (GitHub Actions)
 #
-# Stage 1 (works with no secrets): static checks, API, web (Chromium), ETL on local Docker Postgres.
+# Stage 1 (works with no secrets): static checks, API, web (Chromium), ETL on local Docker Postgres,
+#   and the Harbourline Bank system under test in Docker (docker/bank).
 # Stage 2: set WEB_USER / WEB_PASSWORD / API_TOKEN secrets and TEST_ENV for your real apps.
 # Stage 3: set repo variable MOBILE_ENABLED=true + CLOUD_USER / CLOUD_KEY secrets for device-cloud runs.
 # See docs/CI.md for the full rollout plan.
@@ -107,6 +108,29 @@ jobs:
         if: always()
         with: { name: blob-etl, path: blob-report, retention-days: 7 }
 
+  bank:
+    name: Bank (Docker)
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # PostgreSQL 17 + seed job + app image; --wait returns once the app's healthcheck passes
+      - run: docker compose -f docker/bank/docker-compose.yml up -d --build --wait
+      - run: pnpm exec playwright install --with-deps chromium
+      # Playwright reuses the app container on :4000. BANK_REQUIRED: fail, never skip, if the bank is down.
+      - run: pnpm playwright test --project=bank-api --project=bank-web ${GREP:+--grep "$GREP"}
+        env: { BANK_REQUIRED: "1" }
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose -f docker/bank/docker-compose.yml logs --no-color
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: blob-bank, path: blob-report, retention-days: 7 }
+
   mobile:
     name: Mobile (device cloud)
     # Off until the repo variable MOBILE_ENABLED is 'true' and cloud secrets exist
@@ -133,7 +157,7 @@ jobs:
   report:
     name: Merged report
     if: always()
-    needs: [api, web, etl, mobile]
+    needs: [api, web, etl, bank, mobile]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
