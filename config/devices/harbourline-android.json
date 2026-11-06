@@ -1,0 +1,17 @@
+{
+  "platformName": "Android",
+  "appium:automationName": "UiAutomator2",
+  "appium:deviceName": "emulator-5554",
+  "appium:app": "/apps/harbourline-mobile.apk",
+  "appium:appPackage": "com.harbourline.mobile",
+  "appium:appActivity": ".LoginActivity",
+  "appium:appWaitActivity": "com.harbourline.mobile.*",
+  "appium:autoGrantPermissions": true,
+  "appium:disableWindowAnimation": true,
+  "appium:noReset": false,
+  "appium:newCommandTimeout": 300,
+  "appium:adbExecTimeout": 120000,
+  "appium:uiautomator2ServerInstallTimeout": 120000,
+  "appium:uiautomator2ServerLaunchTimeout": 120000,
+  "appium:androidInstallTimeout": 180000
+}

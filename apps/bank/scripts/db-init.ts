@@ -164,7 +164,8 @@ async function seed(c: pg.Client) {
       'Harbourline Mobile',
       ['authorization_code', 'refresh_token'],
       userScopes,
-      callbacks,
+      // The Android app (apps/harbourline-android) uses its own URI scheme, as native OAuth clients do
+      [...callbacks, 'com.harbourline.mobile://oauth/callback'],
     ],
   ] as const;
   for (const [id, secret, name, grants, scopes, redirects] of clients)

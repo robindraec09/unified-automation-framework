@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="navy">#0B2545</color>
+    <color name="teal">#0F7C80</color>
+    <color name="ink">#1B1F24</color>
+    <color name="muted">#545B66</color>
+    <color name="page">#F3F5F8</color>
+    <color name="danger">#B3261E</color>
+    <color name="ok">#1D6B38</color>
+
+    <style name="Theme.Harbourline" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/navy</item>
+        <item name="android:colorPrimaryDark">@color/navy</item>
+        <item name="android:colorAccent">@color/teal</item>
+        <item name="android:windowBackground">@color/page</item>
+        <item name="android:statusBarColor">@color/navy</item>
+    </style>
+
+    <style name="Heading">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:layout_marginBottom">12dp</item>
+    </style>
+
+    <style name="Label">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:layout_marginTop">12dp</item>
+    </style>
+
+    <style name="Field">
+        <item name="android:textSize">17sp</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+
+    <style name="PrimaryButton">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:backgroundTint">@color/teal</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:layout_marginTop">20dp</item>
+    </style>
+
+    <style name="ErrorText">
+        <item name="android:textColor">@color/danger</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:accessibilityLiveRegion">polite</item>
+    </style>
+</resources>

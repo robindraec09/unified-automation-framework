@@ -1,7 +1,8 @@
 # Unified Automation Framework CI (GitHub Actions)
 #
-# Stage 1 (works with no secrets): static checks, API, web (Chromium), ETL on local Docker Postgres,
-#   and the Harbourline Bank system under test in Docker (docker/bank).
+# Everything runs inside the same containers as locally (compose.yaml): the runner only needs Docker.
+# Stage 1 (works with no secrets): static checks, API, web, ETL, Harbourline Bank, and Harbourline Mobile
+#   on an Android emulator in Docker (main, nightly, manual).
 # Stage 2: set WEB_USER / WEB_PASSWORD / API_TOKEN secrets and TEST_ENV for your real apps.
 # Stage 3: set repo variable MOBILE_ENABLED=true + CLOUD_USER / CLOUD_KEY secrets for device-cloud runs.
 # See docs/CI.md for the full rollout plan.
@@ -27,12 +28,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  CI: "true"
   TEST_ENV: ${{ inputs.env || vars.TEST_ENV || 'dev' }}
   WEB_USER: ${{ secrets.WEB_USER }}
   WEB_PASSWORD: ${{ secrets.WEB_PASSWORD }}
   API_TOKEN: ${{ secrets.API_TOKEN }}
   # PRs run smoke only; main, nightly and manual runs run everything (or the manual filter)
   GREP: ${{ inputs.grep || (github.event_name == 'pull_request' && '@smoke') || '' }}
+  # Run Playwright in the tests container, passing CI and secrets through. Reports land in ./build.
+  RUN_TESTS: docker compose run --rm --build -e CI -e TEST_ENV -e WEB_USER -e WEB_PASSWORD -e API_TOKEN
 
 jobs:
   static:
@@ -40,12 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
+      - run: docker compose run --rm --build --no-deps --entrypoint sh tests -c "pnpm typecheck && pnpm lint"
 
   api:
     name: API
@@ -53,11 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm playwright test --project=api ${GREP:+--grep "$GREP"}
+      - run: $RUN_TESTS --no-deps tests --project=api ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-api, path: build/reports/blob, retention-days: 7 }
@@ -72,14 +67,7 @@ jobs:
         shard: [1/2, 2/2]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - name: Install browsers
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then pnpm exec playwright install --with-deps
-          else pnpm exec playwright install --with-deps chromium; fi
+      # The tests image ships every browser: nightly covers all of them
       - name: Run web tests
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
@@ -87,7 +75,7 @@ jobs:
           else
             PROJECTS="--project=web-chromium"
           fi
-          pnpm playwright test $PROJECTS ${GREP:+--grep "$GREP"} --shard=${{ matrix.shard }}
+          $RUN_TESTS --no-deps tests $PROJECTS ${GREP:+--grep "$GREP"} --shard=${{ matrix.shard }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: "blob-web-${{ strategy.job-index }}", path: build/reports/blob, retention-days: 7 }
@@ -98,12 +86,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: docker compose -f docker/etl/docker-compose.yml up -d --wait
-      - run: pnpm playwright test --project=etl ${GREP:+--grep "$GREP"}
+      - run: docker compose up -d --wait source-db warehouse-db
+      - run: $RUN_TESTS --no-deps tests --project=etl ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-etl, path: build/reports/blob, retention-days: 7 }
@@ -114,22 +98,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
       # PostgreSQL 17 + seed job + app image; --wait returns once the app's healthcheck passes
-      - run: docker compose -f docker/bank/docker-compose.yml up -d --build --wait
-      - run: pnpm exec playwright install --with-deps chromium
-      # Playwright reuses the app container on :4000. BANK_REQUIRED: fail, never skip, if the bank is down.
-      - run: pnpm playwright test --project=bank-api --project=bank-web ${GREP:+--grep "$GREP"}
-        env: { BANK_REQUIRED: "1" }
+      - run: docker compose up -d --build --wait bank-app
+      # The tests container sets BANK_REQUIRED=1: a bank that is down fails the job instead of skipping
+      - run: $RUN_TESTS --no-deps tests --project=bank-api --project=bank-web ${GREP:+--grep "$GREP"}
       - name: Container logs on failure
         if: failure()
-        run: docker compose -f docker/bank/docker-compose.yml logs --no-color
+        run: docker compose logs --no-color bank-app bank-init bank-db
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-bank, path: build/reports/blob, retention-days: 7 }
+
+  android:
+    name: Android (emulator in Docker)
+    # A cold emulator boot adds ~10 minutes: main, nightly and manual runs, not every PR
+    if: github.event_name != 'pull_request'
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Builds the APK, boots Android 14 with KVM, starts Appium and the bank (see docker/mobile)
+      - run: docker compose --profile mobile up -d --build --wait android android-proxy
+      # The tests container sets MOBILE_REQUIRED=1: no emulator fails the job instead of skipping
+      - run: $RUN_TESTS --no-deps tests --project=bank-android ${GREP:+--grep "$GREP"}
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose --profile mobile logs --no-color --tail 200 android android-proxy bank-app
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: blob-android, path: build/reports/blob, retention-days: 7 }
 
   mobile:
     name: Mobile (device cloud)
@@ -145,11 +142,9 @@ jobs:
       CLOUD_KEY: ${{ secrets.CLOUD_KEY }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm playwright test --project=android ${GREP:+--grep "$GREP"}
+      - run: >-
+          $RUN_TESTS -e MOBILE_ENABLED -e CLOUD -e DEVICE -e CLOUD_USER -e CLOUD_KEY
+          --no-deps tests --project=android ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: blob-mobile, path: build/reports/blob, retention-days: 7 }
@@ -157,14 +152,10 @@ jobs:
   report:
     name: Merged report
     if: always()
-    needs: [api, web, etl, bank, mobile]
+    needs: [api, web, etl, bank, android, mobile]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
         with: { path: build/reports/blob, pattern: blob-*, merge-multiple: true }
       # Run history for the stakeholder trend chart, carried between runs per branch
@@ -176,7 +167,9 @@ jobs:
             stakeholder-history-${{ github.ref_name }}-
             stakeholder-history-main-
       # html (engineers) + stakeholder report (one-page summary), see merge.config.ts
-      - run: pnpm playwright merge-reports --config merge.config.ts build/reports/blob
+      - run: >-
+          docker compose run --rm --build --no-deps --entrypoint pnpm tests
+          exec playwright merge-reports --config merge.config.ts build/reports/blob
       - uses: actions/upload-artifact@v4
         with: { name: html-report, path: build/reports/playwright, retention-days: 14 }
       # Both folders in one artifact so the stakeholder page's "detailed report" link works offline
