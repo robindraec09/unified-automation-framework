@@ -1,6 +1,6 @@
 import { test, expect } from '@qa/test';
 import { OrderBuilder, type Order } from '@qa/data';
-import { diffByHash, toCsv } from '@qa/etl';
+import { attachCsv, diffByHash } from '@qa/etl';
 import { faker } from '@faker-js/faker';
 
 /**
@@ -68,7 +68,7 @@ test.describe('orders_daily reconciliation', () => {
       maxRows: config.etl.maxDiffRows,
     });
 
-    if (diffs.length) await test.info().attach('row-diffs.csv', { body: toCsv(diffs), contentType: 'text/csv' });
+    await attachCsv(test.info(), 'row-diffs.csv', diffs);
     expect(diffs, 'mismatched rows attached as CSV').toHaveLength(0);
   });
 });

@@ -14,6 +14,25 @@ import { join, resolve } from 'node:path';
 
 const ROOT = resolve(process.env.QA_ROOT ?? process.cwd());
 const LAST_RUN = join(ROOT, 'test-results', 'mcp-last-run.json');
+
+/** The subset of Playwright's JSON reporter output that get_last_failures reads. */
+interface JsonReportSuite {
+  title: string;
+  suites?: JsonReportSuite[];
+  specs?: {
+    title: string;
+    file: string;
+    line: number;
+    tests?: {
+      projectName: string;
+      results?: {
+        status: string;
+        error?: { message?: string };
+        attachments?: { name: string; path?: string }[];
+      }[];
+    }[];
+  }[];
+}
 const ALLOWED_PROJECTS = ['api', 'web-chromium', 'web-firefox', 'web-webkit', 'mobile-web', 'android', 'ios', 'etl'];
 const BLOCKED_ENVS = ['prod', 'production'];
 
@@ -133,7 +152,7 @@ server.registerTool(
     if (!existsSync(LAST_RUN)) return text('No previous run.');
     const report = JSON.parse(readFileSync(LAST_RUN, 'utf8'));
     const failures: unknown[] = [];
-    const walk = (suite: any, path: string[] = []) => {
+    const walk = (suite: JsonReportSuite, path: string[] = []) => {
       for (const s of suite.suites ?? []) walk(s, [...path, s.title]);
       for (const spec of suite.specs ?? [])
         for (const t of spec.tests ?? [])
@@ -144,7 +163,7 @@ server.registerTool(
                 file: `${spec.file}:${spec.line}`,
                 project: t.projectName,
                 error: (r.error?.message ?? '').slice(0, 2000),
-                attachments: (r.attachments ?? []).map((a: any) => a.path ?? a.name),
+                attachments: (r.attachments ?? []).map((a) => a.path ?? a.name),
               });
     };
     walk(report);
