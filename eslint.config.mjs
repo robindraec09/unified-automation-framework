@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import playwright from 'eslint-plugin-playwright';
+import globals from 'globals';
 
 export default tseslint.config(
   { ignores: ['node_modules', 'playwright-report', 'test-results', 'allure-*'] },
@@ -12,6 +13,11 @@ export default tseslint.config(
       'no-empty-pattern': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
     },
+  },
+  {
+    // Harbourline Bank UI: plain browser scripts, no bundler
+    files: ['apps/bank/public/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
   },
   {
     files: ['tests/**/*.ts', 'seed/**/*.ts'],

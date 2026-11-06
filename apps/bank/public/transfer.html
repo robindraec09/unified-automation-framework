@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transfer &amp; pay | Harbourline Bank</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body data-page="transfer">
+    <div id="app-header"></div>
+    <main class="page">
+      <h1>Transfer &amp; pay</h1>
+      <section class="card">
+        <div class="alert alert-error" role="alert" data-testid="transfer-error" hidden></div>
+        <form id="transfer-form" class="stack" novalidate>
+          <label for="from">From account</label>
+          <select id="from" name="from" required></select>
+
+          <fieldset>
+            <legend>Send to</legend>
+            <label class="radio"
+              ><input type="radio" name="destination" value="account" checked /> My account</label
+            >
+            <label class="radio"><input type="radio" name="destination" value="payee" /> A payee</label>
+          </fieldset>
+
+          <div id="to-account-group" class="stack">
+            <label for="to">To account</label>
+            <select id="to" name="to"></select>
+          </div>
+          <div id="payee-group" class="stack" hidden>
+            <label for="payee">Payee</label>
+            <select id="payee" name="payee"></select>
+          </div>
+
+          <label for="amount">Amount (AUD)</label>
+          <input id="amount" name="amount" inputmode="decimal" placeholder="0.00" required />
+          <label for="description">Description</label>
+          <input id="description" name="description" maxlength="140" />
+          <div class="row"><button class="btn btn-primary" type="submit">Transfer</button></div>
+        </form>
+      </section>
+
+      <section class="card alert-ok" data-testid="transfer-receipt" role="status" hidden>
+        <h2>Transfer successful</h2>
+        <p>Receipt number <strong data-testid="receipt-id"></strong></p>
+        <p data-testid="receipt-summary"></p>
+        <div class="row">
+          <a class="btn btn-primary" href="/accounts">Back to accounts</a>
+          <a class="btn btn-secondary" href="/transfer">Make another transfer</a>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

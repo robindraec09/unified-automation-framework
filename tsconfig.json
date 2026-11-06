@@ -44,6 +44,7 @@
   },
   "include": [
     "packages/**/*.ts",
+    "apps/**/*.ts",
     "tests/**/*.ts",
     "seed/**/*.ts",
     "playwright.config.ts"

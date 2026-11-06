@@ -33,6 +33,19 @@ const ConfigSchema = z.object({
     orchestratorToken: z.string().optional(),
     maxDiffRows: z.coerce.number().default(100),
   }),
+  /** Harbourline Bank: the local system under test in apps/bank (UI + API + OAuth + Postgres). */
+  bank: z
+    .object({
+      baseUrl: z.string().url().default('http://localhost:4000'),
+      dbUrl: z.string().default('postgres://bank_app:bank_app@localhost:5435/bank'),
+      user: z.string().default('alex.morgan'),
+      password: z.string().default('Harbour#2026'),
+      clientId: z.string().default('qa-automation'),
+      clientSecret: z.string().default('qa-automation-secret'),
+      opsClientId: z.string().default('ops-service'),
+      opsClientSecret: z.string().default('ops-service-secret'),
+    })
+    .default({}),
 });
 
 export type FrameworkConfig = z.infer<typeof ConfigSchema>;
@@ -66,6 +79,15 @@ export function loadConfig(): FrameworkConfig {
       pipeline: e.ETL_PIPELINE || fromFile.etl?.pipeline,
       orchestratorUrl: e.AIRFLOW_URL || fromFile.etl?.orchestratorUrl,
       orchestratorToken: e.AIRFLOW_TOKEN || fromFile.etl?.orchestratorToken,
+    },
+    bank: {
+      ...fromFile.bank,
+      baseUrl: e.BANK_BASE_URL || fromFile.bank?.baseUrl,
+      dbUrl: e.BANK_DB_URL || fromFile.bank?.dbUrl,
+      user: e.BANK_USER || fromFile.bank?.user,
+      password: e.BANK_PASSWORD || fromFile.bank?.password,
+      clientSecret: e.BANK_CLIENT_SECRET || fromFile.bank?.clientSecret,
+      opsClientSecret: e.BANK_OPS_CLIENT_SECRET || fromFile.bank?.opsClientSecret,
     },
   };
 

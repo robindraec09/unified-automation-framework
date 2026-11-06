@@ -7,11 +7,15 @@ export type EtlWorkerFixtures = {
   sourcePool: DbClient;
   warehousePool: DbClient;
   etlAvailable: boolean;
+  bankDbPool: DbClient;
+  bankDbAvailable: boolean;
 };
 export type EtlFixtures = {
   source: DbClient;
   warehouse: DbClient;
   pipeline: PipelineRunner;
+  /** Harbourline Bank database (apps/bank), for checking what the UI/API actually wrote. Tables live in schema `bank`. */
+  bankDb: DbClient;
 };
 
 /**
@@ -49,6 +53,19 @@ export const etlTest = base.extend<EtlFixtures, EtlWorkerFixtures>({
   warehouse: async ({ warehousePool, etlAvailable }, use, testInfo) => {
     testInfo.skip(!etlAvailable, 'ETL databases not reachable (run `pnpm etl:up`)');
     await use(warehousePool);
+  },
+  bankDbPool: [
+    async ({}, use) => {
+      const db = connect('bank', loadConfig().bank.dbUrl);
+      await use(db);
+      await db.close();
+    },
+    { scope: 'worker' },
+  ],
+  bankDbAvailable: [async ({ bankDbPool }, use) => use(await bankDbPool.ping()), { scope: 'worker' }],
+  bankDb: async ({ bankDbPool, bankDbAvailable }, use, testInfo) => {
+    testInfo.skip(!bankDbAvailable, 'Bank database not reachable (check BANK_DB_URL, run pnpm bank:db:init)');
+    await use(bankDbPool);
   },
   pipeline: async ({ source, warehouse }, use) => {
     await use(createPipeline(loadConfig(), source, warehouse));

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payees | Harbourline Bank</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body data-page="payees">
+    <div id="app-header"></div>
+    <main class="page">
+      <h1>Payees</h1>
+      <section class="card">
+        <table data-testid="payee-table">
+          <caption>
+            Saved payees
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">BSB</th>
+              <th scope="col">Account number</th>
+              <th scope="col">Nickname</th>
+              <th scope="col"><span class="hint">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+      <section class="card" aria-labelledby="add-payee-heading">
+        <h2 id="add-payee-heading">Add a payee</h2>
+        <div class="alert alert-error" role="alert" data-testid="payee-error" hidden></div>
+        <div class="alert alert-ok" role="status" data-testid="payee-success" hidden></div>
+        <form id="payee-form" class="stack" novalidate>
+          <label for="payee-name">Account name</label>
+          <input id="payee-name" name="name" required />
+          <label for="payee-bsb">BSB</label>
+          <input id="payee-bsb" name="bsb" placeholder="123-456" required />
+          <label for="payee-account">Account number</label>
+          <input id="payee-account" name="accountNumber" inputmode="numeric" required />
+          <label for="payee-nickname">Nickname (optional)</label>
+          <input id="payee-nickname" name="nickname" />
+          <div class="row"><button class="btn btn-primary" type="submit">Add payee</button></div>
+        </form>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
