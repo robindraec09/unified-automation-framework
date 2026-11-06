@@ -22,6 +22,10 @@ export default tseslint.config(
       'playwright/no-focused-test': 'error',
       'playwright/no-raw-locators': 'warn',
       'playwright/prefer-web-first-assertions': 'error',
+      // Gating a whole file on the environment (e.g. mobile needs Appium) is intended; bare .skip() is not
+      'playwright/no-skipped-test': ['warn', { allowConditional: true }],
+      // expect.configure(...) wrappers named expectXxx count as assertions
+      'playwright/expect-expect': ['warn', { assertFunctionPatterns: ['^expect[A-Z]\\w*$'] }],
     },
   },
 );

@@ -1,3 +1,4 @@
+import type { TestInfo } from '@playwright/test';
 import type { DbClient } from './db';
 
 export interface HashDiffOptions {
@@ -44,4 +45,10 @@ export function toCsv(rows: object[]): string {
   return [cols.join(','), ...rows.map((r) => cols.map((c) => esc((r as Record<string, unknown>)[c])).join(','))].join(
     '\n',
   );
+}
+
+/** Attach rows to the test report as CSV, skipping the attachment when there is nothing to show. */
+export async function attachCsv(testInfo: TestInfo, name: string, rows: object[]): Promise<void> {
+  if (!rows.length) return;
+  await testInfo.attach(name, { body: toCsv(rows), contentType: 'text/csv' });
 }

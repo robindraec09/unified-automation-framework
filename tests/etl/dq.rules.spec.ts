@@ -9,14 +9,20 @@ for (const file of loadRuleFiles()) {
   test.describe(`DQ ${file.table} (${file.file})`, () => {
     for (const rule of file.rules) {
       const tags = ['@etl', ...file.tags].join(' ');
+      // Decided per rule at collection time, so the test body has no branches
+      const dbName = file.database === 'source' ? 'source' : 'warehouse';
+      const isWarn = rule.severity === 'warn';
+      const label = isWarn ? 'violations (warn)' : 'violations';
+      const sql = ruleSql(file.table, rule);
+      // warn-severity rules fail softly: reported, but the run continues
+      const expectRule = expect.configure({ soft: isWarn });
+
       test(`${ruleTitle(rule)} ${tags}`, async ({ source, warehouse }) => {
-        const db = file.database === 'source' ? source : warehouse;
-        const sql = ruleSql(file.table, rule);
+        const db = { source, warehouse }[dbName];
         const { violations } = await db.one<{ violations: number }>(sql);
         test.info().annotations.push({ type: 'sql', description: sql });
 
-        if (rule.severity === 'warn') expect.soft(violations, 'violations (warn)').toBe(0);
-        else expect(violations, 'violations').toBe(0);
+        expectRule(violations, label).toBe(0);
       });
     }
   });
