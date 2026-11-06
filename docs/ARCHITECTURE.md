@@ -90,21 +90,22 @@ flowchart TB
   etl --> core
 ```
 
-| Package          | Responsibility                     | Key contents                                                                                                                           |
-| ---------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `@qa/core`       | Configuration and shared constants | Zod-validated config (`config/env/<TEST_ENV>.json` + env overrides), `logger`, `BUILD` output paths, `AUTH` session files              |
-| `@qa/data`       | Test data                          | `PostBuilder`, `OrderBuilder`, `PayeeBuilder`; `CleanupRegistry` (LIFO teardown)                                                       |
-| `@qa/web`        | Browser channel                    | `BasePage`, page objects (saucedemo, Harbourline), components, `a11y` (axe) fixture                                                    |
-| `@qa/api`        | HTTP channel                       | `BaseClient`, service clients, `OAuthClient`, `BankTestSupport`, Zod contracts, `toMatchSchema` matcher, bank fixtures and health gate |
-| `@qa/mobile`     | Native mobile                      | Worker-scoped WebdriverIO session, `BaseScreen`, platform-aware selectors, capabilities                                                |
-| `@qa/etl`        | Data channel                       | `DbClient` (Postgres adapter), `LocalPipeline` / `AirflowPipeline`, hash reconciliation, YAML rule engine, `bankDb`                    |
-| `@qa/flows`      | Business flows                     | One interface, one implementation per channel (e.g. login on web and mobile)                                                           |
-| `@qa/test`       | Composition                        | `mergeTests` of every channel's fixtures + `config` and `cleanup`; `mergeExpects`                                                      |
-| `@qa/reporting`  | Stakeholder report                 | Playwright `Reporter` building a run model, HTML/Markdown renderers, trend history                                                     |
-| `@qa/mcp-server` | Agent interface                    | MCP tools over page objects, fixtures, configs, ETL rules, test runs                                                                   |
+| Package          | Responsibility                     | Key contents                                                                                                                                                 |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@qa/core`       | Configuration and shared constants | Zod-validated config (`config/env/<TEST_ENV>.json` + env overrides), `logger`, `BUILD` output paths, `AUTH` session files                                    |
+| `@qa/data`       | Test data                          | `PostBuilder`, `OrderBuilder`, `PayeeBuilder`; `CleanupRegistry` (LIFO teardown)                                                                             |
+| `@qa/web`        | Browser channel                    | `BasePage`, page objects (saucedemo, Harbourline; one class per file), components (`HeaderComponent`, `BankNav`), `toAud` money helper, `a11y` (axe) fixture |
+| `@qa/api`        | HTTP channel                       | `BaseClient`, service clients, `OAuthClient`, `BankTestSupport`, Zod contracts, `toMatchSchema` matcher, bank fixtures and health gate                       |
+| `@qa/mobile`     | Native mobile                      | Worker-scoped WebdriverIO session, `BaseScreen`, platform-aware selectors, capabilities                                                                      |
+| `@qa/etl`        | Data channel                       | `DbClient` (Postgres adapter), `LocalPipeline` / `AirflowPipeline`, hash reconciliation, YAML rule engine, `bankDb`                                          |
+| `@qa/flows`      | Business flows                     | One interface, one implementation per channel (e.g. login on web and mobile)                                                                                 |
+| `@qa/test`       | Composition                        | `mergeTests` of every channel's fixtures + `config` and `cleanup`; `mergeExpects`                                                                            |
+| `@qa/reporting`  | Stakeholder report                 | Playwright `Reporter` building a run model, HTML/Markdown renderers, trend history                                                                           |
+| `@qa/mcp-server` | Agent interface                    | MCP tools over page objects, fixtures, configs, ETL rules, test runs                                                                                         |
 
-**Locator policy** (enforced in review and by ESLint): `getByRole` > `getByLabel` / `getByPlaceholder` >
-`getByTestId` > CSS, never XPath; locators live in page objects, never in specs. See [CODING_STANDARDS.md](CODING_STANDARDS.md).
+**Locator policy:** `getByRole` > `getByLabel` / `getByPlaceholder` > `getByTestId` > CSS, never XPath;
+locators live in page objects, never in specs. The order is a review rule. ESLint backs it up on specs:
+raw locators are a warning, `waitForTimeout` and non-web-first assertions are errors. See [CODING_STANDARDS.md](CODING_STANDARDS.md).
 
 ## 3. Test execution model
 
@@ -205,7 +206,8 @@ flowchart LR
 | `source-db`, `warehouse-db` | `postgres:16`            | 5433, 5434 | Seeded from `docker/etl/init/*.sql`                                               |
 | `tests`                     | `qa-tests:local`         | none       | `docker/tests/Dockerfile`; profile `tests`; `BANK_AUTOSTART=0`, `BANK_REQUIRED=1` |
 
-Ports avoid a local PostgreSQL on 5432. `.dockerignore` keeps `.env`, `node_modules`, `build/` and `.git` out of every image.
+Ports avoid a local PostgreSQL on 5432. `.dockerignore` keeps `.env`, `.git`, `node_modules`, `build/`,
+`mobile-builds/` and editor settings out of every image.
 
 ## 5. Harbourline Bank (system under test)
 
@@ -233,8 +235,9 @@ flowchart TB
 ```
 
 **Authentication.** Every `/api/v1` route accepts HTTP Basic, an OAuth bearer token (HS256 JWT, 15 min),
-or the web session cookie. Scopes are checked per route (`accounts:read`, `payments:write`, ...).
-Another customer's resources return 404, not 403, so ids can't be probed. Three wrong passwords lock a customer.
+or the web session cookie (30 min). Refresh tokens last 7 days and rotate on use. Scopes are checked per route
+(`accounts:read`, `payments:write`, ...). Another customer's resources return 404, not 403, so ids can't be
+probed. Three wrong passwords lock a customer.
 
 | Grant                            | Client                         | Notes                                     |
 | -------------------------------- | ------------------------------ | ----------------------------------------- |
@@ -318,7 +321,9 @@ Secrets (passwords, client secrets, refresh tokens, auth codes, sessions) are st
 
 ## 6. Reporting
 
-Every run writes to `build/` (paths defined once as `BUILD` in `@qa/core`).
+Every run writes to `build/` (paths defined once as `BUILD` in `@qa/core`). The diagram shows a local or
+Docker run. In CI each job writes only blob and Allure results (`build/reports/blob`, `build/reports/allure-results`),
+and the report job renders both reports from the merged blobs ([section 7](#7-ci-pipeline)).
 
 ```mermaid
 flowchart LR
@@ -422,8 +427,9 @@ flowchart LR
 **Point it at your own web app or API**
 
 1. Add `config/env/<name>.json` and run with `TEST_ENV=<name>`; put secrets in `.env` / CI secrets.
-2. Add page objects under `packages/web/src/pages/<app>/` (one class per file) and clients under
-   `packages/api/src/clients/<app>/`, with Zod schemas.
+2. Add page objects under `packages/web/src/pages/<app>/` and clients under `packages/api/src/clients/<app>/`,
+   with Zod schemas. Keep **one class per file**: the MCP `list_page_objects` tool reports the first class in
+   each file, so agents would not see the others.
 3. Expose them as fixtures in the package's `fixtures.ts`; they appear in `@qa/test` automatically.
 4. Add a Playwright project per channel and a friendly area name in `packages/reporting/src/stakeholder-reporter.ts`.
 
@@ -441,7 +447,10 @@ and route to it in `connect()`.
 
 ## 12. Known limitations
 
-- Native mobile isn't containerised; it needs Appium and an emulator, simulator or device cloud.
+- Native mobile isn't containerised; it needs Appium and an emulator, simulator or device cloud. App builds go
+  in `mobile-builds/` (git-ignored) or a device cloud, never in the repository.
+- The stakeholder page's link to the engineering report works when the file is opened from disk or from the
+  CI artifact, not through `pnpm report:stakeholder`, which serves only the stakeholder folder.
 - Reports from the Docker runner show no branch or commit, because `.git` isn't copied into the image.
 - CI's ETL and bank jobs start their own containers and run tests on the runner, not in the `tests` image.
 - The CI trend history lives in the Actions cache, which GitHub evicts after 7 days without use.
