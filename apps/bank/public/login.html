@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log in | Harbourline Bank</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="auth-body" data-page="login">
+    <div>
+      <main class="auth-card" aria-labelledby="login-heading">
+        <div class="brand brand-lg">
+          <span class="brand-mark" aria-hidden="true">H</span> Harbourline Bank
+        </div>
+        <h1 id="login-heading">Log in to Internet Banking</h1>
+        <div class="alert alert-error" role="alert" data-testid="login-error" hidden></div>
+        <form id="login-form" novalidate>
+          <label for="username">Customer ID</label>
+          <input id="username" name="username" autocomplete="username" required />
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <button class="btn btn-primary" type="submit">Log in</button>
+        </form>
+        <p class="hint">Demo customers: alex.morgan / Harbour#2026</p>
+      </main>
+      <p class="footer-note">
+        Harbourline Bank is a fictional bank for test automation. Not a real financial institution.
+      </p>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Account | Harbourline Bank</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body data-page="account">
+    <div id="app-header"></div>
+    <main class="page">
+      <p><a href="/accounts">&larr; All accounts</a></p>
+      <div class="alert alert-error" role="alert" data-testid="page-error" hidden></div>
+      <section class="card summary" aria-labelledby="account-name">
+        <div>
+          <h1 id="account-name" data-testid="account-name">Account</h1>
+          <div class="account-meta" data-testid="account-number"></div>
+        </div>
+        <div>
+          <div class="money big" data-testid="account-balance"></div>
+          <div class="account-meta" data-testid="account-available"></div>
+        </div>
+      </section>
+      <section class="card">
+        <table data-testid="transactions">
+          <caption>
+            Recent transactions
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Description</th>
+              <th scope="col" class="num">Amount</th>
+              <th scope="col" class="num">Balance</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -18,9 +18,11 @@ packages/
   flows/       business flows shared across channels
   test/        the single entry point: import { test, expect } from '@qa/test'
   mcp-server/  framework MCP server for agents
-tests/         setup/, web/, api/, mobile/, etl/
+apps/bank/     Harbourline Bank: local system under test (UI + API with Basic/OAuth 2.0 + Postgres)
+tests/         setup/, web/, api/, mobile/, etl/, bank/
 config/        env/*.json, devices/*.json, etl/rules/*.yml, etl/mappings/*.md
 docker/etl/    local source + warehouse Postgres for the ETL demo
+docker/bank/   Harbourline Bank containers: PostgreSQL 17, seed job, app
 seed/          seed spec for the planner agent
 specs/         Markdown test plans (planner output)
 .mcp.json      Playwright MCP, Appium MCP, framework MCP, data MCP
@@ -37,6 +39,7 @@ pnpm test:api            # demo API (jsonplaceholder)
 pnpm test:web            # demo web app (saucedemo), runs the setup project first
 pnpm etl:up && pnpm test:etl   # ETL demo against local Docker Postgres
 pnpm report
+pnpm bank:up && pnpm test:bank   # Harbourline Bank in Docker (see below)
 ```
 
 The sample targets are public demo apps so everything runs on day one. Replace them with your systems:
@@ -51,12 +54,27 @@ point `config/env/*.json` at your URLs and swap the example page objects, client
 | `mobile-web` | Playwright device emulation | `@smoke` |
 | `android` / `ios` | Appium via WebdriverIO | `@smoke @device` |
 | `etl` | DB + pipeline fixtures | `@etl @recon @dq` |
+| `bank-api` / `bank-web` | Local Harbourline Bank (auto-started) | `@smoke @security @negative @db @a11y` |
 
 ### Mobile
 1. Install Appium 2+ and drivers: `npm i -g appium && appium driver install uiautomator2` (and `xcuitest` on macOS).
 2. Put your build in `apps/` or upload it to your device cloud; adjust `config/devices/*.json`.
 3. `appium` in one terminal, then `MOBILE_ENABLED=1 pnpm test:mobile:android`.
 4. Device cloud: set `CLOUD=browserstack`, `DEVICE=pixel-8`, `CLOUD_USER`, `CLOUD_KEY`.
+
+### Harbourline Bank (local system under test)
+A fictional bank in `apps/bank` that you run locally: internet-banking UI, REST API with HTTP Basic and
+OAuth 2.0 (password, client credentials, authorization code + PKCE, rotating refresh tokens), and PostgreSQL.
+It exercises every layer of the framework against one realistic system.
+
+1. `pnpm bank:up` builds and starts it in Docker: PostgreSQL 17 (port 5435), a seed job and the app (port 4000).
+2. `pnpm test:bank`. Uses the running app, or starts it on the host if port 4000 is free; tests skip cleanly if the DB is down.
+3. Open <http://localhost:4000> (`alex.morgan` / `Harbour#2026`). `pnpm bank:reset` reloads the seed, `pnpm bank:down` removes it.
+
+Prefer your own PostgreSQL install? Set `BANK_DB_URL` and `BANK_DB_ADMIN_URL` in `.env` and run `pnpm bank:db:init`.
+
+Fixtures: `bank` (page objects), `bankApi` / `bankApiAs({ basic | bearer | oauth })`, `oauth`,
+`bankCustomer` (a fresh customer per test, deleted afterwards) and `bankDb`. Details: [apps/bank/README.md](apps/bank/README.md).
 
 ### ETL
 - `orders.recon.spec.ts` seeds source rows for a unique run date, runs the `orders_daily` job,

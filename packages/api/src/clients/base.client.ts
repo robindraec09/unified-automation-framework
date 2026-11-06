@@ -11,8 +11,8 @@ export abstract class BaseClient {
     return this.request.get(`${this.basePath}${path}`, { params });
   }
 
-  protected post(path: string, data: unknown): Promise<APIResponse> {
-    return this.request.post(`${this.basePath}${path}`, { data });
+  protected post(path: string, data: unknown, headers?: Record<string, string>): Promise<APIResponse> {
+    return this.request.post(`${this.basePath}${path}`, { data, headers });
   }
 
   protected put(path: string, data: unknown): Promise<APIResponse> {
