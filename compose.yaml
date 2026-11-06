@@ -1,0 +1,47 @@
+# The whole QA stack in Docker: systems under test + the test runner, one Compose project.
+#
+#   pnpm stack:up      start every service (ETL databases, Harbourline Bank DB + app) and wait until healthy
+#   pnpm stack:test    run all suites inside the `tests` container (reports land in ./playwright-report)
+#   pnpm stack:down    stop everything and delete all data volumes
+#
+# Pass your own Playwright arguments:  docker compose run --rm tests --project=bank-api --grep @smoke
+# Native mobile (Appium + device) is not containerised.
+name: qa-stack
+
+include:
+  - docker/etl/docker-compose.yml # source-db (5433), warehouse-db (5434)
+  - docker/bank/docker-compose.yml # bank-db (5435), bank-init, bank-app (4000)
+
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: docker/tests/Dockerfile
+    image: qa-tests:local
+    # Only runs on demand (docker compose run), never with `up`
+    profiles: [tests]
+    # Containers talk by service name; ports above are only for you on the host
+    environment:
+      TEST_ENV: dev
+      ETL_SOURCE_URL: postgres://qa:qa@source-db:5432/source
+      ETL_TARGET_URL: postgres://qa:qa@warehouse-db:5432/warehouse
+      BANK_BASE_URL: http://bank-app:4000
+      BANK_DB_URL: postgres://bank_app:bank_app@bank-db:5432/bank
+      # The bank-app container is the server: Playwright must not start another, and must fail if it is down
+      BANK_AUTOSTART: '0'
+      BANK_REQUIRED: '1'
+    depends_on:
+      source-db: { condition: service_healthy }
+      warehouse-db: { condition: service_healthy }
+      bank-app: { condition: service_healthy }
+    # Web, API and ETL suites; mobile needs Appium and a device
+    command:
+      - --project=api
+      - --project=web-chromium
+      - --project=etl
+      - --project=bank-api
+      - --project=bank-web
+    volumes:
+      - ./playwright-report:/repo/playwright-report
+      - ./test-results:/repo/test-results
+    ipc: host # recommended for Chromium in Docker

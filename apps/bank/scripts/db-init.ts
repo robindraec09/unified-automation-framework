@@ -133,7 +133,14 @@ async function seed(c: pg.Client) {
     );
 
   const userScopes = ['accounts:read', 'transactions:read', 'payees:read', 'payees:write', 'payments:write'];
-  const callback = `${process.env.BANK_PUBLIC_URL ?? 'http://localhost:4000'}/oauth/callback`;
+  // The public callback, plus any extra hosts the app is reached by (e.g. http://bank-app:4000 inside Docker)
+  const callbacks = [
+    `${process.env.BANK_PUBLIC_URL ?? 'http://localhost:4000'}/oauth/callback`,
+    ...(process.env.BANK_REDIRECT_URIS ?? '')
+      .split(',')
+      .map((u) => u.trim())
+      .filter(Boolean),
+  ];
   const clients = [
     [
       'qa-automation',
@@ -141,7 +148,7 @@ async function seed(c: pg.Client) {
       'QA Automation',
       ['password', 'refresh_token', 'authorization_code'],
       userScopes,
-      [callback],
+      callbacks,
     ],
     [
       'ops-service',
@@ -157,7 +164,7 @@ async function seed(c: pg.Client) {
       'Harbourline Mobile',
       ['authorization_code', 'refresh_token'],
       userScopes,
-      [callback],
+      callbacks,
     ],
   ] as const;
   for (const [id, secret, name, grants, scopes, redirects] of clients)

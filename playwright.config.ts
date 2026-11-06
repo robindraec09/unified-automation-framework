@@ -8,7 +8,10 @@ const STANDARD_USER = AUTH.standardUser;
 // Start the local bank app (apps/bank) when bank projects or files are selected, or with no --project filter.
 // reuseExistingServer: a bank you started yourself with `pnpm bank:start` is used as is.
 const args = process.argv.join(' ');
-const startBank = process.env.BANK_AUTOSTART === '1' || /bank/.test(args) || !/--project/.test(args);
+// BANK_AUTOSTART=0 (the Docker test runner) never starts one: the bank-app container is the server.
+const startBank =
+  process.env.BANK_AUTOSTART !== '0' &&
+  (process.env.BANK_AUTOSTART === '1' || /bank/.test(args) || !/--project/.test(args));
 
 /**
  * One runner, many channels. Each channel is a Playwright project:

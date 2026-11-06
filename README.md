@@ -30,6 +30,33 @@ specs/         Markdown test plans (planner output)
 
 ## Quick start
 
+### Everything in Docker (recommended)
+
+Needs only Docker. Systems under test and the test runner (Playwright + browsers) all run in containers:
+
+```bash
+pnpm stack:up      # ETL databases, Harbourline Bank (PostgreSQL 17 + app); waits until healthy
+pnpm stack:test    # runs api, web-chromium, etl, bank-api, bank-web in the `tests` container
+pnpm stack:down    # stop everything, delete the data
+```
+
+No pnpm on your machine? Use Docker directly: `docker compose up -d --build --wait`, then
+`docker compose run --rm --build tests`. Pick suites or tags the same way as locally:
+`docker compose run --rm tests --project=bank-api --grep @smoke`. The HTML report is written to
+`./playwright-report` on your machine (`pnpm report` opens it). Native mobile is not containerised.
+
+| Service | Purpose | Host port |
+| --- | --- | --- |
+| `source-db`, `warehouse-db` | ETL demo databases (PostgreSQL 16) | 5433, 5434 |
+| `bank-db` | Harbourline Bank database (PostgreSQL 17) | 5435 |
+| `bank-init` | seeds the bank DB on first start, then exits | none |
+| `bank-app` | Harbourline Bank UI + API | 4000 |
+| `tests` | the framework + Playwright browsers; runs on demand (`docker compose run`) | none |
+
+Defined in [compose.yaml](compose.yaml), which includes `docker/etl` and `docker/bank`.
+
+### On your machine
+
 ```bash
 pnpm install
 pnpm exec playwright install --with-deps
@@ -67,9 +94,9 @@ A fictional bank in `apps/bank` that you run locally: internet-banking UI, REST 
 OAuth 2.0 (password, client credentials, authorization code + PKCE, rotating refresh tokens), and PostgreSQL.
 It exercises every layer of the framework against one realistic system.
 
-1. `pnpm bank:up` builds and starts it in Docker: PostgreSQL 17 (port 5435), a seed job and the app (port 4000).
+1. `pnpm bank:up` (or `pnpm stack:up` for everything) starts it in Docker: PostgreSQL 17 (port 5435), a seed job and the app (port 4000).
 2. `pnpm test:bank`. Uses the running app, or starts it on the host if port 4000 is free; tests skip cleanly if the DB is down.
-3. Open <http://localhost:4000> (`alex.morgan` / `Harbour#2026`). `pnpm bank:reset` reloads the seed, `pnpm bank:down` removes it.
+3. Open <http://localhost:4000> (`alex.morgan` / `Harbour#2026`). `pnpm bank:reset` reloads the seed, `pnpm bank:down` stops it (data kept; `pnpm stack:down` deletes it).
 
 Prefer your own PostgreSQL install? Set `BANK_DB_URL` and `BANK_DB_ADMIN_URL` in `.env` and run `pnpm bank:db:init`.
 

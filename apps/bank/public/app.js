@@ -1,6 +1,16 @@
 // Harbourline Bank UI. Plain browser JS, no build step. Pages call /api/v1 with the session cookie.
 'use strict';
 
+// crypto.randomUUID() exists only in secure contexts (https or localhost); the app is also reached
+// over plain http by container hostname (http://bank-app:4000), so build a v4 UUID from getRandomValues.
+function uuid() {
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 const aud = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 const fmtMoney = (n) => aud.format(n);
 const fmtDate = (iso) =>
@@ -213,7 +223,7 @@ async function transferPage() {
   form.querySelectorAll('input[name="destination"]').forEach((r) => r.addEventListener('change', toggle));
 
   // One key per form view: double-clicking Transfer can never pay twice
-  let idempotencyKey = crypto.randomUUID();
+  let idempotencyKey = uuid();
   form.removeEventListener('submit', early);
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -247,7 +257,7 @@ async function transferPage() {
         `${fmtMoney(t.amount)} sent to ${target}`;
       form.closest('section').hidden = true;
       document.querySelector('[data-testid="transfer-receipt"]').hidden = false;
-      idempotencyKey = crypto.randomUUID();
+      idempotencyKey = uuid();
     } catch (e) {
       show('[data-testid="transfer-error"]', errorText(e));
     } finally {

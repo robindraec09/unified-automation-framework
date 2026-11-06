@@ -12,10 +12,14 @@ One Node process (`src/server.ts`, Express) serves everything on <http://localho
 
 ```bash
 pnpm bank:up       # build + start PostgreSQL 17, seed it (first start only) and the app; waits until healthy
-pnpm test:bank     # bank-api + bank-web against the running containers
+pnpm test:bank     # bank-api + bank-web from your machine, against the running containers
 pnpm bank:reset    # reload the seed data (keeps containers running)
 pnpm bank:logs     # follow the app log
-pnpm bank:down     # stop and delete the data volume
+pnpm bank:down     # stop and remove the bank containers (the data volume is kept)
+pnpm stack:down    # stop the whole stack and delete all data
+
+# Or run the tests in a container too (see the root README, "Everything in Docker"):
+docker compose run --rm --build tests --project=bank-api --project=bank-web
 ```
 
 | Container   | What                                                            | Host port |
@@ -24,7 +28,8 @@ pnpm bank:down     # stop and delete the data volume
 | `bank-init` | one-off: creates schema + seed when the DB is empty, then exits | none      |
 | `bank-app`  | the app, with test support on                                   | 4000      |
 
-Compose file: [docker/bank/docker-compose.yml](../../docker/bank/docker-compose.yml). Image: [Dockerfile](Dockerfile)
+Compose file: [docker/bank/docker-compose.yml](../../docker/bank/docker-compose.yml), included in the root
+[compose.yaml](../../compose.yaml) stack (project `qa-stack`). Image: [Dockerfile](Dockerfile)
 (installs only this app's dependencies from the workspace lockfile, runs as the `node` user).
 Ports avoid clashes with a local PostgreSQL install (5432) and the ETL demo (5433/5434).
 
@@ -32,7 +37,8 @@ Ports avoid clashes with a local PostgreSQL install (5432) and the ETL demo (543
 
 `pnpm test:bank` starts the app on the host itself when nothing is listening on port 4000
 (`reuseExistingServer`), so you can keep just `bank-db` running and debug the app locally:
-`docker compose -f docker/bank/docker-compose.yml up -d bank-db bank-init`, then `pnpm bank:start`.
+`docker compose up -d --wait bank-db bank-init`, then `pnpm bank:start`. Inside the stack, containers reach
+the app as `http://bank-app:4000`; its OAuth callback is registered for that host too (`BANK_REDIRECT_URIS`).
 
 ### Your local PostgreSQL instead of Docker
 
