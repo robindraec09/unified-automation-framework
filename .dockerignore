@@ -12,3 +12,4 @@ allure-results
 allure-report
 *.log
 .vscode
+stakeholder-report

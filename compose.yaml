@@ -44,4 +44,5 @@ services:
     volumes:
       - ./playwright-report:/repo/playwright-report
       - ./test-results:/repo/test-results
+      - ./stakeholder-report:/repo/stakeholder-report
     ipc: host # recommended for Chromium in Docker

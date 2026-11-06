@@ -4,6 +4,8 @@ import { loadConfig, AUTH } from '@qa/core';
 const cfg = loadConfig();
 const isCI = !!process.env.CI;
 const STANDARD_USER = AUTH.standardUser;
+/** One-page HTML report for stakeholders: stakeholder-report/index.html */
+const STAKEHOLDER_REPORTER = './packages/reporting/src/stakeholder-reporter.ts';
 
 // Start the local bank app (apps/bank) when bank projects or files are selected, or with no --project filter.
 // reuseExistingServer: a bank you started yourself with `pnpm bank:start` is used as is.
@@ -26,9 +28,10 @@ export default defineConfig<object, { requiresBank: boolean }>({
   workers: isCI ? 4 : undefined,
   timeout: 60_000,
   expect: { timeout: 10_000 },
+  // CI shards write blobs; the report job merges them and renders html + the stakeholder report
   reporter: isCI
     ? [['blob'], ['github'], ['allure-playwright']]
-    : [['list'], ['html', { open: 'never' }]],
+    : [['list'], ['html', { open: 'never' }], [STAKEHOLDER_REPORTER, { title: 'Quality report' }]],
   use: {
     baseURL: cfg.web.baseUrl,
     // The demo app (saucedemo) uses data-test. Change to your team's test-id contract.

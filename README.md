@@ -72,6 +72,28 @@ pnpm bank:up && pnpm test:bank   # Harbourline Bank in Docker (see below)
 The sample targets are public demo apps so everything runs on day one. Replace them with your systems:
 point `config/env/*.json` at your URLs and swap the example page objects, clients and mappings.
 
+## Reporting
+
+Every run writes two reports:
+
+| Report | For | Open with | What it shows |
+| --- | --- | --- | --- |
+| `stakeholder-report/index.html` | Product owners, managers, release decisions | `pnpm report:stakeholder` or open the file | Release status (Ready / At risk / Not ready), pass rate and change since the last run, results by product area and by quality dimension (critical journeys, security, data integrity, ...), pass-rate trend, failures and flaky tests in plain language |
+| `playwright-report/index.html` | Engineers | `pnpm report` | Every test step, errors, screenshots, videos, traces |
+
+The stakeholder report is one self-contained HTML file: no internet needed, safe to email or attach,
+prints cleanly to PDF, light and dark themes, and keyboard and screen-reader accessible (checked with axe).
+It also writes `summary.md` (for chat, email or the CI job summary), `summary.json`, and `history.json`,
+which keeps the last 30 runs for the trend chart. Built by the custom reporter in `packages/reporting`.
+
+**Release status rules:** *Not ready* if any `@smoke` or `@security` test fails or the pass rate is below 90%;
+*At risk* if anything else fails or is flaky; otherwise *Ready to release*. Product areas come from the
+Playwright projects (names in `packages/reporting/src/stakeholder-reporter.ts`), quality dimensions from
+test tags (`packages/reporting/src/model.ts`); adjust both to your organisation's language.
+
+**In CI** the report job merges all shards (`merge.config.ts`), keeps the trend history per branch in the
+Actions cache, posts the summary on the run page, and uploads both reports as the `quality-report` artifact.
+
 ## Channels
 
 | Project | Driver | Typical tags |

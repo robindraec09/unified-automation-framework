@@ -167,10 +167,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
         with: { path: all-blob-reports, pattern: blob-*, merge-multiple: true }
-      - run: pnpm playwright merge-reports --reporter html ./all-blob-reports
+      # Run history for the stakeholder trend chart, carried between runs per branch
+      - uses: actions/cache@v4
+        with:
+          path: stakeholder-report/history.json
+          key: stakeholder-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            stakeholder-history-${{ github.ref_name }}-
+            stakeholder-history-main-
+      # html (engineers) + stakeholder-report (one-page summary), see merge.config.ts
+      - run: pnpm playwright merge-reports --config merge.config.ts ./all-blob-reports
       - uses: actions/upload-artifact@v4
         with: { name: html-report, path: playwright-report, retention-days: 14 }
+      # Both folders in one artifact so the stakeholder page's "detailed report" link works offline
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          retention-days: 30
+          path: |
+            stakeholder-report
+            playwright-report
       - name: Summary
         run: |
-          echo "### Test report" >> $GITHUB_STEP_SUMMARY
-          echo "Download **html-report** from this run's artifacts and open index.html." >> $GITHUB_STEP_SUMMARY
+          cat stakeholder-report/summary.md >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download **quality-report** from this run's artifacts and open stakeholder-report/index.html (one-page summary) or playwright-report/index.html (engineering detail)." >> $GITHUB_STEP_SUMMARY

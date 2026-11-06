@@ -19,6 +19,7 @@
     "test:bank:web": "playwright test --project=bank-web",
     "test:smoke": "playwright test --grep @smoke",
     "report": "playwright show-report",
+    "report:stakeholder": "playwright show-report stakeholder-report --port 9324",
     "etl:up": "docker compose up -d --wait source-db warehouse-db",
     "etl:down": "docker compose rm -sf source-db warehouse-db",
     "bank:start": "tsx apps/bank/src/server.ts",
