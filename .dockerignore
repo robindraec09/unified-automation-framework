@@ -3,13 +3,7 @@
 .env.*
 !.env.example
 .git
-.auth
 **/node_modules
-test-results
-playwright-report
-blob-report
-allure-results
-allure-report
 *.log
 .vscode
-stakeholder-report
+build

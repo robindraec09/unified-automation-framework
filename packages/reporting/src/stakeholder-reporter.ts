@@ -17,14 +17,14 @@ import {
 import { renderHtml, renderMarkdown } from './render';
 
 export interface StakeholderReporterOptions {
-  /** Folder for index.html, summary.md, summary.json and history.json. Default: stakeholder-report */
+  /** Folder for index.html, summary.md, summary.json and history.json. Default: build/reports/stakeholder */
   outputFolder?: string;
   title?: string;
   /** Friendly names for Playwright projects, e.g. { 'bank-api': 'Banking API' } */
   areas?: Record<string, string>;
   /** Runs kept for the trend chart. Default 30 */
   historySize?: number;
-  /** Where the Playwright HTML report lives, to link failures to detail. Default: playwright-report */
+  /** Where the Playwright HTML report lives, to link failures to detail. Default: build/reports/playwright */
   detailReportFolder?: string;
 }
 
@@ -81,7 +81,7 @@ export default class StakeholderReporter implements Reporter {
 
   constructor(options: StakeholderReporterOptions = {}) {
     this.options = options;
-    this.out = resolve(options.outputFolder ?? 'stakeholder-report');
+    this.out = resolve(options.outputFolder ?? 'build/reports/stakeholder');
   }
 
   printsToStdio() {
@@ -188,7 +188,7 @@ export default class StakeholderReporter implements Reporter {
       .filter((r) => r.outcome === 'skipped')
       .forEach((r) => reasons.set(r.skipReason!, (reasons.get(r.skipReason!) ?? 0) + 1));
 
-    const detailFolder = resolve(this.options.detailReportFolder ?? 'playwright-report');
+    const detailFolder = resolve(this.options.detailReportFolder ?? 'build/reports/playwright');
     const env = process.env;
     return {
       title: this.options.title ?? 'Test results',

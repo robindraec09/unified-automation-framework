@@ -1,10 +1,5 @@
 node_modules/
+# Everything a test run generates: reports, test artefacts, saved sessions
+build/
 .env
-test-results/
-playwright-report/
-blob-report/
-allure-results/
-allure-report/
-.auth/
 *.log
-stakeholder-report/

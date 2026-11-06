@@ -60,7 +60,7 @@ jobs:
       - run: pnpm playwright test --project=api ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: blob-api, path: blob-report, retention-days: 7 }
+        with: { name: blob-api, path: build/reports/blob, retention-days: 7 }
 
   web:
     name: Web (shard ${{ matrix.shard }})
@@ -90,7 +90,7 @@ jobs:
           pnpm playwright test $PROJECTS ${GREP:+--grep "$GREP"} --shard=${{ matrix.shard }}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: "blob-web-${{ strategy.job-index }}", path: blob-report, retention-days: 7 }
+        with: { name: "blob-web-${{ strategy.job-index }}", path: build/reports/blob, retention-days: 7 }
 
   etl:
     name: ETL
@@ -106,7 +106,7 @@ jobs:
       - run: pnpm playwright test --project=etl ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: blob-etl, path: blob-report, retention-days: 7 }
+        with: { name: blob-etl, path: build/reports/blob, retention-days: 7 }
 
   bank:
     name: Bank (Docker)
@@ -129,7 +129,7 @@ jobs:
         run: docker compose -f docker/bank/docker-compose.yml logs --no-color
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: blob-bank, path: blob-report, retention-days: 7 }
+        with: { name: blob-bank, path: build/reports/blob, retention-days: 7 }
 
   mobile:
     name: Mobile (device cloud)
@@ -152,7 +152,7 @@ jobs:
       - run: pnpm playwright test --project=android ${GREP:+--grep "$GREP"}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: blob-mobile, path: blob-report, retention-days: 7 }
+        with: { name: blob-mobile, path: build/reports/blob, retention-days: 7 }
 
   report:
     name: Merged report
@@ -166,29 +166,29 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
-        with: { path: all-blob-reports, pattern: blob-*, merge-multiple: true }
+        with: { path: build/reports/blob, pattern: blob-*, merge-multiple: true }
       # Run history for the stakeholder trend chart, carried between runs per branch
       - uses: actions/cache@v4
         with:
-          path: stakeholder-report/history.json
+          path: build/reports/stakeholder/history.json
           key: stakeholder-history-${{ github.ref_name }}-${{ github.run_id }}
           restore-keys: |
             stakeholder-history-${{ github.ref_name }}-
             stakeholder-history-main-
-      # html (engineers) + stakeholder-report (one-page summary), see merge.config.ts
-      - run: pnpm playwright merge-reports --config merge.config.ts ./all-blob-reports
+      # html (engineers) + stakeholder report (one-page summary), see merge.config.ts
+      - run: pnpm playwright merge-reports --config merge.config.ts build/reports/blob
       - uses: actions/upload-artifact@v4
-        with: { name: html-report, path: playwright-report, retention-days: 14 }
+        with: { name: html-report, path: build/reports/playwright, retention-days: 14 }
       # Both folders in one artifact so the stakeholder page's "detailed report" link works offline
       - uses: actions/upload-artifact@v4
         with:
           name: quality-report
           retention-days: 30
           path: |
-            stakeholder-report
-            playwright-report
+            build/reports/stakeholder
+            build/reports/playwright
       - name: Summary
         run: |
-          cat stakeholder-report/summary.md >> $GITHUB_STEP_SUMMARY
+          cat build/reports/stakeholder/summary.md >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download **quality-report** from this run's artifacts and open stakeholder-report/index.html (one-page summary) or playwright-report/index.html (engineering detail)." >> $GITHUB_STEP_SUMMARY
+          echo "Download **quality-report** from this run's artifacts and open stakeholder/index.html (one-page summary) or playwright/index.html (engineering detail)." >> $GITHUB_STEP_SUMMARY

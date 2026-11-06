@@ -1,7 +1,7 @@
 # The whole QA stack in Docker: systems under test + the test runner, one Compose project.
 #
 #   pnpm stack:up      start every service (ETL databases, Harbourline Bank DB + app) and wait until healthy
-#   pnpm stack:test    run all suites inside the `tests` container (reports land in ./playwright-report)
+#   pnpm stack:test    run all suites inside the `tests` container (everything generated lands in ./build)
 #   pnpm stack:down    stop everything and delete all data volumes
 #
 # Pass your own Playwright arguments:  docker compose run --rm tests --project=bank-api --grep @smoke
@@ -42,7 +42,6 @@ services:
       - --project=bank-api
       - --project=bank-web
     volumes:
-      - ./playwright-report:/repo/playwright-report
-      - ./test-results:/repo/test-results
-      - ./stakeholder-report:/repo/stakeholder-report
+      # Reports, screenshots/videos/traces and saved sessions, written straight to ./build on your machine
+      - ./build:/repo/build
     ipc: host # recommended for Chromium in Docker

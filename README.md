@@ -43,7 +43,7 @@ pnpm stack:down    # stop everything, delete the data
 No pnpm on your machine? Use Docker directly: `docker compose up -d --build --wait`, then
 `docker compose run --rm --build tests`. Pick suites or tags the same way as locally:
 `docker compose run --rm tests --project=bank-api --grep @smoke`. The HTML report is written to
-`./playwright-report` on your machine (`pnpm report` opens it). Native mobile is not containerised.
+`./build/reports` on your machine (`pnpm report:stakeholder` and `pnpm report` open them). Native mobile is not containerised.
 
 | Service | Purpose | Host port |
 | --- | --- | --- |
@@ -78,8 +78,8 @@ Every run writes two reports:
 
 | Report | For | Open with | What it shows |
 | --- | --- | --- | --- |
-| `stakeholder-report/index.html` | Product owners, managers, release decisions | `pnpm report:stakeholder` or open the file | Release status (Ready / At risk / Not ready), pass rate and change since the last run, results by product area and by quality dimension (critical journeys, security, data integrity, ...), pass-rate trend, failures and flaky tests in plain language |
-| `playwright-report/index.html` | Engineers | `pnpm report` | Every test step, errors, screenshots, videos, traces |
+| `build/reports/stakeholder/index.html` | Product owners, managers, release decisions | `pnpm report:stakeholder` or open the file | Release status (Ready / At risk / Not ready), pass rate and change since the last run, results by product area and by quality dimension (critical journeys, security, data integrity, ...), pass-rate trend, failures and flaky tests in plain language |
+| `build/reports/playwright/index.html` | Engineers | `pnpm report` | Every test step, errors, screenshots, videos, traces |
 
 The stakeholder report is one self-contained HTML file: no internet needed, safe to email or attach,
 prints cleanly to PDF, light and dark themes, and keyboard and screen-reader accessible (checked with axe).
@@ -93,6 +93,24 @@ test tags (`packages/reporting/src/model.ts`); adjust both to your organisation'
 
 **In CI** the report job merges all shards (`merge.config.ts`), keeps the trend history per branch in the
 Actions cache, posts the summary on the run page, and uploads both reports as the `quality-report` artifact.
+
+### Where generated files go
+
+Everything a run produces is under `build/` (git-ignored; paths defined once in `BUILD`, `packages/core`):
+
+```
+build/
+  reports/
+    stakeholder/      one-page report, summary.md, summary.json, history.json (trend)
+    playwright/       engineers' HTML report
+    allure-results/   raw Allure results (CI)
+    blob/             shard blob reports (CI), merged by the report job
+    mcp/              last run of the qa-framework MCP server's run_tests tool
+  test-results/       screenshots, videos, traces and attachments (cleared at the start of each run)
+  auth/               saved login sessions from the setup projects
+```
+
+`pnpm clean` deletes `build/`, including the trend history. The Docker test runner writes to the same folder.
 
 ## Channels
 
