@@ -119,8 +119,9 @@ jobs:
       - uses: actions/checkout@v4
       # GitHub's Linux runners have KVM, but /dev/kvm is root:kvm 0660 and the emulator in the image runs as
       # a non-root user. GitHub's documented fix for Android emulators: open the device up with a udev rule.
-      # The runner image ships ~25 GB of toolchains this job never uses; the emulator, SDK and test images
-      # need the room (without it the emulator exits: "not enough disk space to run avd").
+      # The runner image ships ~25 GB of toolchains this job never uses. The emulator needs room for its 6 GB
+      # data partition (the image ignores EMULATOR_DATA_PARTITION) on top of the emulator, SDK and test images;
+      # without this it exits at once: "not enough disk space to run avd".
       - name: Free disk space
         run: |
           df -h /
