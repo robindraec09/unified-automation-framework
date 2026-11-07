@@ -56,9 +56,6 @@ services:
       # profile grew to 6.3 GB and the kernel OOM-killed it on an 8 GB Docker VM.
       # -no-metrics: the emulator's own usage metrics, off (it warns this will become a blocking prompt)
       EMULATOR_ADDITIONAL_ARGS: '-memory 2048 -no-boot-anim -no-audio -no-metrics'
-      # The image's default 6 GB data partition made the emulator refuse to start on a CI runner already
-      # holding the test, SDK and emulator images ("not enough disk space"). The app needs a few MB.
-      EMULATOR_DATA_PARTITION: 2g
     # Hard ceiling so the emulator can never starve the databases or the bank app. Measured during the
     # bank-android suite: up to 5.1 GB resident (Android 14 enforces 2.5 GB guest RAM, plus ~2.2 GB for the
     # emulator and software GPU). 6 GB leaves headroom and still fits Docker Desktop's default 8 GB VM.
